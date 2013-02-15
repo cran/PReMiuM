@@ -183,9 +183,24 @@ profRegr<-function(covNames, fixedEffectsNames, outcome="outcome", outcomeT=NA, 
 				predict[k,missingX]<- rep(-999,nMissingX)
 			}
 		}		
-		write(t(as.matrix(predict)), paste(output,"_predict.txt",sep=""),append=T,ncolumns=dim(predict)[2])
+		write(t(as.matrix(predict[,c(covNames)])), paste(output,"_predict.txt",sep=""),append=T,ncolumns=length(covNames))
+		if (length(intersect(outcome,names(predict)))>0) {
+			if (length(intersect(fixedEffectsNames,names(predict)))==length(fixedEffectsNames)) {
+				write(nPreds, paste(output,"_predictFull.txt",sep=""),ncolumns=1)
+				write(t(as.matrix(predict[,c(outcome,fixedEffectsNames)])), paste(output,"_predictFull.txt",sep=""),append=T,ncolumns=(1+length(fixedEffectsNames)))
+				fullPredictFile<-TRUE
+			} else {
+				write(nPreds, paste(output,"_predictFull.txt",sep=""),ncolumns=1)
+				predictFixedEffectsNA<-cbind(as.matrix(predict[,c(outcome)]),matrix(-999,ncol=nFixedEffects,nrow=nPreds))
+				write(t(predictFixedEffectsNA), paste(output,"_predictFull.txt",sep=""),append=T,ncolumns=(1+length(fixedEffectsNames)))
+				fullPredictFile<-TRUE
+			}
+		} else {
+			fullPredictFile<-FALSE
+		}
 	} else {
 		nPreds<-0
+		fullPredictFile<-FALSE
 	}
 
 	write(t(dataMatrix), fileName,append=T,ncolumns=dim(dataMatrix)[2])
@@ -338,6 +353,7 @@ profRegr<-function(covNames, fixedEffectsNames, outcome="outcome", outcomeT=NA, 
 		"nFilter"=nFilter,
 		"nSubjects"=nSubjects,
 		"nPredictSubjects"=nPreds,
+		"fullPredictFile"=fullPredictFile,
 		"covNames"=covNames,
 		"discreteCovs"=ifelse(xModel=="Mixed",discreteCovs,NA),
 		"continuousCovs"=ifelse(xModel=="Mixed",continuousCovs,NA),
@@ -359,7 +375,7 @@ profRegr<-function(covNames, fixedEffectsNames, outcome="outcome", outcomeT=NA, 
 
 # Function to take the output from the C++ run and return an average dissimilarity
 # matrix
-calcDissimilarityMatrix<-function(runInfoObj){
+calcDissimilarityMatrix<-function(runInfoObj,onlyLS=FALSE){
 
 	directoryPath=NULL
 	fileStem=NULL
@@ -369,7 +385,6 @@ calcDissimilarityMatrix<-function(runInfoObj){
 	nSubjects=NULL
 	nPredictSubjects=NULL
 	nBurn=NULL
-
 
    for (i in 1:length(runInfoObj)) assign(names(runInfoObj)[i],runInfoObj[[i]])
 
@@ -383,18 +398,26 @@ calcDissimilarityMatrix<-function(runInfoObj){
 
    # Call the C++ to compute the dissimilarity matrix
    disSimList<-.Call('calcDisSimMat',fileName,nSweeps,recordedNBurn,nFilter,nSubjects,
-                       nPredictSubjects, PACKAGE = 'PReMiuM')
+                       nPredictSubjects, onlyLS, PACKAGE = 'PReMiuM')
 
-   disSimMat<-disSimList$disSimMat
-   lsOptSweep<-disSimList$lsOptSweep
-   disSimMatPred<-NULL              
-   if(nPredictSubjects>0){
-      disSimMatPred<-disSimMat[(1+(nSubjects*(nSubjects-1)/2)):length(disSimMat)]
-      disSimMat<-disSimMat[1:(nSubjects*(nSubjects-1)/2)]
-   }   
-   disSimObj<-list('disSimRunInfoObj'=runInfoObj,'disSimMat'=disSimMat,
-                     'disSimMatPred'=disSimMatPred,'lsOptSweep'=lsOptSweep)              
-   return(disSimObj)
+	if (onlyLS){
+		lsOptSweep<-disSimList$lsOptSweep
+		disSimMatPred<-NULL              
+		disSimObj<-list('disSimRunInfoObj'=runInfoObj,'disSimMat'=NA,
+			'disSimMatPred'=NA,'lsOptSweep'=lsOptSweep,'onlyLS'=onlyLS)              
+	} else {
+		disSimMat<-disSimList$disSimMat
+		lsOptSweep<-disSimList$lsOptSweep
+		disSimMatPred<-NULL              
+		if(nPredictSubjects>0){
+			disSimMatPred<-disSimMat[(1+(nSubjects*(nSubjects-1)/2)):length(disSimMat)]
+			disSimMat<-disSimMat[1:(nSubjects*(nSubjects-1)/2)]
+		}   
+		disSimObj<-list('disSimRunInfoObj'=runInfoObj,'disSimMat'=disSimMat,
+			'disSimMatPred'=disSimMatPred,'lsOptSweep'=lsOptSweep,'onlyLS'=onlyLS)              
+	}
+
+	return(disSimObj)
 }
 
 # Given a dissimilarity matrix (or list of dissimilarity matrices)
@@ -411,10 +434,12 @@ calcOptimalClustering<-function(disSimObj,maxNClusters=NULL,useLS=F){
 	nBurn=NULL
 	nFilter=NULL
 	nSweeps=NULL
-
+	onlyLS=NULL
 
    for (i in 1:length(disSimObj)) assign(names(disSimObj)[i],disSimObj[[i]])
    for (i in 1:length(disSimRunInfoObj)) assign(names(disSimRunInfoObj)[i],disSimRunInfoObj[[i]])
+
+	if (onlyLS==TRUE) useLS <- TRUE
 
    if(useLS){
       # maniupulation for least squares method, but computation has been done in previous function
@@ -1627,6 +1652,7 @@ calcPredictions<-function(riskProfObj,predictResponseFileName=NULL, doRaoBlackwe
 	nFilter=NULL
 	nSweeps=NULL
 	nPredictSubjects=NULL
+	fullPredictFile=NULL
 	nFixedEffects=NULL
 	directoryPath=NULL
 	fileStem=NULL
@@ -1656,8 +1682,11 @@ calcPredictions<-function(riskProfObj,predictResponseFileName=NULL, doRaoBlackwe
 	
 	# Get the response and fixed effects data if available
 	responseProvided<-F
-	extraInfoProvided<-F
+	extraInfoProvided<-F # extra info is denominator for binomial and poisson
 	fixedEffectsProvided<-F
+	if (is.null(predictResponseFileName)&&fullPredictFile==TRUE){
+		predictResponseFileName = file.path(directoryPath,paste(fileStem,'_predictFull.txt',sep=''))
+	}
 	if(!is.null(predictResponseFileName)){
 		predictResponseData<-scan(predictResponseFileName,quiet=T)
 		predictResponseMat<-matrix(predictResponseData[2:length(predictResponseData)],
@@ -1792,15 +1821,18 @@ calcPredictions<-function(riskProfObj,predictResponseFileName=NULL, doRaoBlackwe
 	}
 
 	if(responseProvided){
-		bias<-apply(predictedY,2,mean)-predictYMat[,1]
+		bias<-apply(predictedY,2,median)-predictYMat[,1]
 		rmse<-sqrt(mean(bias^2))
+		mae<-mean(abs(bias))
 		bias<-mean(bias)
 		output<-list("bias"=bias,"rmse"=rmse,
 			"observedY"=predictYMat[,1],
-			"predictedY"=apply(predictedY,c(2,3),mean),
-			"doRaoBlackwell"=doRaoBlackwell)
+			"predictedY"=apply(predictedY,c(2,3),median),
+			"doRaoBlackwell"=doRaoBlackwell,
+			"mae"=mae)
 	}else{
-		output<-list("bias"=NA,"rmse"=NA,"observedY"=NA,"predictedY"=apply(predictedY,c(2,3),mean,2),"doRaoBlackwell"=doRaoBlackwell)
+		output<-list("bias"=NA,"rmse"=NA,"observedY"=NA,"predictedY"=apply(predictedY,c(2,3),median),"doRaoBlackwell"=doRaoBlackwell,
+			"mae"=NA)
 	}
 	if(fullSweepPredictions){
 		output$predictedYPerSweep<-predictedY
@@ -1813,7 +1845,9 @@ calcPredictions<-function(riskProfObj,predictResponseFileName=NULL, doRaoBlackwe
 		}
 		output$logORPerSweep<-logORPerSweep
 	}
-	
+	if(fixedEffectsProvided){
+		close(betaFile)
+	}
 	return(output)
 }
 

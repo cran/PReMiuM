@@ -8,7 +8,7 @@ calcOptimalClustering(disSimObj, maxNClusters=NULL, useLS=F)
 \arguments{
 \item{disSimObj}{A dissimilarity matrix (in vector format, as the output of the function calcDissimilarityMatrix(), and as described in ?calcDissimilarityMatrix) or a list of dissimilarity matrix, to combine the output of several runs of the MCMC.}
 \item{maxNClusters}{Set the maximum number of clusters allowed. This is set to the maximum number explored.}
-\item{useLS}{This is set to FALSE by default. If it is set to TRUE then the least-squares method is used for the calculation of the optimal clustering, as described in Molitor et al (2010).}
+\item{useLS}{This is set to FALSE by default. If it is set to TRUE then the least-squares method is used for the calculation of the optimal clustering, as described in Molitor et al (2010). Note that this is set to TRUE by default if disSimObj$onlyLS is set to TRUE.}
 }
 \value{
 the output is a list with the following elements. This is an object of type clusObj.
@@ -29,7 +29,7 @@ Maintainer: Silvia Liverani <liveranis@gmail.com>
 }
 \references{
 
-Liverani, S., Hastie, D. I. and Richardson, S. (2013) PReMiuM: An R package for Profile Regression Mixture Models using Dirichlet Processes. \emph{Submitted}.
+Liverani, S., Hastie, D. I., Papathomas, M. and Richardson, S. (2013) PReMiuM: An R package for Profile Regression Mixture Models using Dirichlet Processes. \emph{Submitted}. Avalable at http://uk.arxiv.org/abs/1303.2836
 
 }
 \examples{
