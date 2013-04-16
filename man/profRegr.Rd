@@ -8,12 +8,12 @@ profRegr(covNames, fixedEffectsNames, outcome="outcome",
         nSweeps=1000, nBurn=1000, nProgress=500, nFilter=1, 
         nClusInit, seed, yModel="Bernoulli", xModel="Discrete", 
         sampler="SliceDependent", alpha=-1, excludeY, 
-        extraYVar, varSelectType="None", entropy,reportBurnIn=FALSE,
+        extraYVar=FALSE, varSelectType="None", entropy,reportBurnIn=FALSE,
         run=TRUE, discreteCovs, continuousCovs)
 }
 \arguments{
 \item{covNames}{A vector of strings of the covariate names as by the column names in the data argument.}
-\item{fixedEffectsNames}{A vector of strings of the fixed effect names as by the column names in the data argument.}
+\item{fixedEffectsNames}{A vector of strings of the fixed effect names as by the column names in the data argument. Each fixed effect must be of class 'numeric'. If a fixed effect is of class 'character', an error message will appear and the fixed effect will need to be recoded as numeric.}
 \item{outcome}{A string of column of the data argument that contains the outcome. The outcome cannot have missing values - you could consider predicting the value of the outcome for those subjects for which it has not been observed.}
 \item{outcomeT}{A string of column of the data argument that contains the offset (for Poisson outcome) or the number of trials (for Binomial outcome).}
 \item{data}{A data frame which has as columns the outcome, the covariates, the fixed effects if any and the offset (for Poisson outcome) or the number of trials (for Binomial outcome). The outcome cannot have missing values - you could consider predicting the value of the outcome for those subjects for which it has not been observed.}
@@ -47,7 +47,7 @@ See ?calcPredictions for more details and examples.
 \item{sampler}{The sampler type to be used. Options are "SliceDependent", "SliceIndependent" and "Truncated".  The default value is "SliceDependent".}
 \item{alpha}{The value to be used if alpha is to remain fixed. If a negative value is used then alpha is updated. The default value is -1.}
 \item{excludeY}{If included only the covariate data X is modelled. By default this is not included.}
-\item{extraYVar}{If included extra Gaussian variance is included in the response model. By default the extra Gaussian variance is not included.}
+\item{extraYVar}{If set equal to TRUE extra Gaussian variance is included in the response model. By default the extra Gaussian variance is not included, so extraYVar=FALSE.}
 \item{varSelectType}{The type of variable selection to be used "None", "BinaryCluster" or "Continuous".  The "BinaryCluster" variable selection is the implementation of the novel variable selection formulation proposed by Papathomas, Molitor, Hoggart, Hastie, Richardson (2012) "Exploring data from genetic association studies using
 Bayesian variable selection and the Dirichlet process: application to searching for gene x gene patterns" in Genetic Epidemiology. The "Continuous" variable selection is based on the method proposed by Chung and Dunson (2009) "Nonparametric Bayes conditional distribution modelling with variable selection" in the Journal of the American Statistical Association. Both types of variable selection can be used with discrete, continuous or mixed covariates. The default value is "None".}
 \item{entropy}{If included then we compute allocation entropy. By default the allocation entropy is not included.}
@@ -66,7 +66,8 @@ It returns a number of files in the output directory as well as a list with the 
 \item{nSweeps}{Integer. The number of sweeps of the MCMC after the burn-in.}
 \item{nBurn}{Integer. The number of iterations in the burn-in period of the MCMC.}
 \item{reportBurnIn}{Logical. Whether the output of the burn-in report should be included.}
-\item{nFilter}{Integer. The frequency (in sweeps) with which to write the output to file. The default value is 1.}
+\item{nFilter}{Integer. The frequency (in sweeps) with which to write the output to file.}
+\item{nProgress}{The number of sweeps at which to print a progress update.}
 \item{nSubjects}{Integer. The number of subjects.}
 \item{nPredictSubjects}{Integer. The number of subjects for which to run predictions.}
 \item{fullPredictFile}{Logical. It is FALSE by default. It is equal to TRUE if the outcome or the outcome and the fixed effects were included in the dataframe provided in the input predict. If TRUE, the function will have a produced a file ending in "_predictFull.txt" which contains the values of the outcome and fixed effects for the computation of measures of fit in the function calcPredictions.}
@@ -80,6 +81,7 @@ It returns a number of files in the output directory as well as a list with the 
 \item{nFixedEffects}{Integer. The number of fixed effects.}
 \item{nCategoriesY}{Integer. The number of categories of the outcome, if yModel = "Categorical". It is 1 otherwise.}
 \item{nCategories}{Vector of integers. The number of categories of each covariate, if xModel = "Discrete". It is 1 otherwise.}
+\item{extraYVar}{TRUE if extra Gaussian variance is included in the response model.}
 \item{xMat}{A matrix of the covariate data.}
 \item{yMat}{A matrix of the outcome data, including the offset if the outcome is Poisson and the number of trials if the outcome is Binomial.}
 \item{wMat}{A matrix of the fixed effect data.}
@@ -95,7 +97,7 @@ Maintainer: Silvia Liverani <liveranis@gmail.com>
 }
 \references{
 
-Liverani, S., Hastie, D. I., Papathomas, M. and Richardson, S. (2013) PReMiuM: An R package for Profile Regression Mixture Models using Dirichlet Processes. \emph{Submitted}. Avalable at http://uk.arxiv.org/abs/1303.2836
+Liverani, S., Hastie, D. I., Papathomas, M. and Richardson, S. (2013) PReMiuM: An R package for Profile Regression Mixture Models using Dirichlet Processes. \emph{Submitted}. Available at http://uk.arxiv.org/abs/1303.2836
 
 }
 \examples{
