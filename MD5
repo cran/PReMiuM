@@ -1,5 +1,5 @@
 d7304cea23b004d59093fdbee7e7e8d1 *ChangeLog
-198661c074069b75abbc48d742b5a939 *DESCRIPTION
+c2a8f5fa1d2c12223047750498fb69b0 *DESCRIPTION
 0d9567d0b26003a49fb7199cb45109a3 *NAMESPACE
 5b522c0ea3b19519043b9169bfaaa91e *R/generateData.R
 17e93c9732299a466e32869876ee4ae2 *R/postProcess.R
@@ -30,7 +30,7 @@ bdfbc135c3038974e64ff4573ccecbcb *src/include/Math/distribution.h
 bc940a165869f9ea456ce3a1e60397df *src/include/Math/mathfunctions.h
 8bb1854b56c3b3461c39e4a4b78bce57 *src/include/Math/random.h
 fa491cfd7ccc79c98e8d44eead87bdaa *src/include/PReMiuMData.h
-aa18c01ef12b8d7439974351cbd55759 *src/include/PReMiuMIO.h
+dfe624c05a0a5897b331388c1c7d2908 *src/include/PReMiuMIO.h
 b2ce17c3021d3ac658773a2cf7ae084a *src/include/PReMiuMModel.h
 625b693bfc35f4f232657db55c13111a *src/include/PReMiuMOptions.h
 85aa289605cb78f8dcf9705f6368c09e *src/include/PReMiuMProposals.h
