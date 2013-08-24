@@ -23,7 +23,7 @@
 
 is.wholenumber <- function(x, tol = .Machine$double.eps^0.5)  abs(x - round(x)) < tol
 
-profRegr<-function(covNames, fixedEffectsNames, outcome="outcome", outcomeT=NA, data, output="output", hyper, predict, nSweeps=1000, nBurn=1000, nProgress=500, nFilter=1, nClusInit, seed, yModel="Bernoulli", xModel="Discrete", sampler="SliceDependent", alpha=-1, excludeY, extraYVar=FALSE, varSelectType="None", entropy,reportBurnIn=FALSE, run=TRUE, discreteCovs, continuousCovs){
+profRegr<-function(covNames, fixedEffectsNames, outcome="outcome", outcomeT=NA, data, output="output", hyper, predict, nSweeps=1000, nBurn=1000, nProgress=500, nFilter=1, nClusInit, seed, yModel="Bernoulli", xModel="Discrete", sampler="SliceDependent", alpha=-1, excludeY=FALSE, extraYVar=FALSE, varSelectType="None", entropy,reportBurnIn=FALSE, run=TRUE, discreteCovs, continuousCovs, whichLabelSwitch="123"){
 
 	# suppress scientific notation
 	options(scipen=999)
@@ -37,11 +37,19 @@ profRegr<-function(covNames, fixedEffectsNames, outcome="outcome", outcomeT=NA, 
 	
 	if (!is.data.frame(data)) stop("Input data must be a data.frame with outcome, covariates and fixed effect names as column names.")
 
+	if (extraYVar==TRUE&(yModel=="Categorical"||yModel=="Normal")) stop("Option extraYVar is only available for Bernoulli, Binomial and Poisson response.")
+
 	# open file to write output
 	fileName<-paste(output,"_input.txt",sep="")
 	# make big data matrix with outcome, covariates and fixed effects	
 	# outcome
-	dataMatrix<-data[,which(colnames(data)==outcome)]
+	# create outcome if excludeY=TRUE and outcome not provided
+	if (length(which(colnames(data)==outcome))<1&&excludeY==TRUE) {
+		dataMatrix<-rep(0,dim(data)[1])
+		yModel="Bernoulli" 
+	} else {
+		dataMatrix<-data[,which(colnames(data)==outcome)]
+	}
 
 	if (sum(is.na(dataMatrix))>0) stop("ERROR: the outcome cannot have missing values. Use the profiles with missing outcome for predictions.")
 
@@ -171,6 +179,7 @@ profRegr<-function(covNames, fixedEffectsNames, outcome="outcome", outcomeT=NA, 
 	if (nFixedEffects>0){
 		write(t(fixedEffectsNames), fileName,append=T,ncolumns=1)
 	}
+	if (yModel=="Categorical") write(yLevels,fileName,append=T,ncolumns=1) 
 	if (xModel=="Discrete"||xModel=="Mixed"){
 		write(xLevels,fileName,append=T,ncolumns=length(xLevels))
 	}
@@ -212,7 +221,7 @@ profRegr<-function(covNames, fixedEffectsNames, outcome="outcome", outcomeT=NA, 
 	if (xModel!="Discrete"&xModel!="Normal"&xModel!="Mixed") stop("This xModel is not defined.")
 	if (yModel!="Poisson"&yModel!="Binomial"&yModel!="Bernoulli"&yModel!="Normal"&yModel!="Categorical") stop("This yModel is not defined.")
 
-	inputString<-paste("PReMiuM --input=",fileName," --output=",output," --xModel=",xModel," --yModel=",yModel," --varSelect=",varSelectType,sep="")
+	inputString<-paste("PReMiuM --input=",fileName," --output=",output," --xModel=",xModel," --yModel=",yModel," --varSelect=",varSelectType," --whichLabelSwitch=",whichLabelSwitch,sep="")
 
 	# create hyperparameters file
 	if (!missing(hyper)) {
@@ -297,7 +306,7 @@ profRegr<-function(covNames, fixedEffectsNames, outcome="outcome", outcomeT=NA, 
 	if (!missing(nFilter)) inputString<-paste(inputString," --nFilter=",nFilter,sep="")
 	if (!missing(nClusInit)) inputString<-paste(inputString," --nClusInit=",nClusInit,sep="")
 	if (!missing(seed)) inputString<-paste(inputString," --seed=",seed,sep="")
-	if (!missing(excludeY)) inputString<-paste(inputString," --excludeY",sep="")
+	if (excludeY) inputString<-paste(inputString," --excludeY",sep="")
 	if (extraYVar) inputString<-paste(inputString," --extraYVar",sep="")
 	if (!missing(entropy)) inputString<-paste(inputString," --entropy",sep="")
 
@@ -313,13 +322,6 @@ profRegr<-function(covNames, fixedEffectsNames, outcome="outcome", outcomeT=NA, 
 	}
 	
 	# other re-writes for function return
-	# include response
-	if (!missing(excludeY)) {
-		includeResponse <- FALSE
-		yModel <- NULL
-	} else {
-		includeResponse <- TRUE
-	}
 	# var select and var select type
 	if (varSelectType=="None") {
 		varSelect <- FALSE
@@ -333,7 +335,8 @@ profRegr<-function(covNames, fixedEffectsNames, outcome="outcome", outcomeT=NA, 
 	# outcome and fixed effect matrix
 	yMat <- NULL
 	wMat <- NULL
-	if(includeResponse){
+	# the code requires these matrices whether excludeY is TRUE or FALSE
+	#if(includeResponse){
 		yMat<-matrix(dataMatrix[,1],ncol=1)
 		if(yModel=='Poisson'){
 			offset<-dataMatrix[,ncol(dataMatrix)]
@@ -345,6 +348,13 @@ profRegr<-function(covNames, fixedEffectsNames, outcome="outcome", outcomeT=NA, 
 		if(nFixedEffects>0){
 			wMat<-dataMatrix[,(2+nCovariates):(1+nCovariates+nFixedEffects)]
 		}
+	#}
+	# include response
+	if (excludeY) {
+		includeResponse <- FALSE
+		yModel <- NULL
+	} else {
+		includeResponse <- TRUE
 	}
 
 	return(list("directoryPath"=directoryPath,
@@ -363,6 +373,7 @@ profRegr<-function(covNames, fixedEffectsNames, outcome="outcome", outcomeT=NA, 
 		"continuousCovs"=ifelse(xModel=="Mixed",continuousCovs,NA),
 		"xModel"=xModel,
 		"includeResponse"=includeResponse,
+		"whichLabelSwitch"=whichLabelSwitch,
 		"yModel"=yModel,
 		"varSelect"=varSelect,
 		"varSelectType"=varSelType,
@@ -546,7 +557,12 @@ calcOptimalClustering<-function(disSimObj,maxNClusters=NULL,useLS=F){
 			clusteringPred<-rep(0,nPredictSubjects)
 			for(i in 1:nPredictSubjects){
 				tmpVec<-disSimMatPred[i,clustMedoids]
-				clusteringPred[i]<-sample(which(tmpVec==min(tmpVec)),1)
+				whichMin <- which(tmpVec==min(tmpVec))
+				if (length(whichMin)>1) {
+					clusteringPred[i]<-sample(whichMin,1)
+				} else {
+					clusteringPred[i]<-whichMin
+				}
 			}
 		}
 	}
@@ -950,6 +966,8 @@ calcAvgRiskAndProfile<-function(clusObj,includeFixedEffects=F){
 				empiricals[c]<-mean(yMat[optAlloc[[c]],1]/yMat[optAlloc[[c]],2])
 			}else if(yModel=='Poisson'){
 				empiricals[c]<-mean(yMat[optAlloc[[c]],1]/yMat[optAlloc[[c]],2])
+			#}else if(yModel=='Categorical'){
+			# no empiricals for categorical outcome				
 			}
 		}
 	}
@@ -1326,21 +1344,23 @@ plotRiskProfile<-function(riskProfObj,outFile,showRelativeRisk=F,orderBy=NULL,wh
 	}
 	
 	# Create a bar chart of cluster empiricals
-	if(!is.null(yModel)){
-		plotObj<-ggplot(empiricalDF)
-		plotObj<-plotObj+geom_point(aes(x=as.factor(cluster),y=empiricals,colour=as.factor(fillColor)),size=3)
-		plotObj<-plotObj+geom_hline(aes(x=as.factor(cluster),y=empiricals,yintercept=meanEmpirical))
-		plotObj<-plotObj+scale_colour_manual(values = c(high ="#CC0033",low ="#0066CC", avg ="#33CC66"))+
-			theme(legend.position="none")
-		plotObj<-plotObj+labs(title='Empirical Data',plot.title=element_text(size=10))
-		plotObj<-plotObj+theme(axis.title.x=element_text(size=10),axis.title.y=element_text(size=10,angle=90))
-		plotObj<-plotObj+
-			labs(y=ifelse(yModel=="Bernoulli","Proportion of cases",
-			ifelse(yModel=="Binomial","Avg Proportion of occurrence",
-			ifelse(yModel=="Poisson","Avg Count",
-			ifelse(yModel=="Categorical","Avg Proportion of occurrence","Avg Y")))),x="Cluster")
-		plotObj<-plotObj+theme(plot.margin=unit(c(0,0,0,0),'lines'))+theme(plot.margin=unit(c(0.15,0.5,0.5,1),'lines'))
-		print(plotObj,vp=viewport(layout.pos.row=1:3,layout.pos.col=1))
+	if((!is.null(yModel))){
+		if(yModel!="Categorical"){
+			plotObj<-ggplot(empiricalDF)
+			plotObj<-plotObj+geom_point(aes(x=as.factor(cluster),y=empiricals,colour=as.factor(fillColor)),size=3)
+			plotObj<-plotObj+geom_hline(aes(x=as.factor(cluster),y=empiricals,yintercept=meanEmpirical))
+			plotObj<-plotObj+scale_colour_manual(values = c(high ="#CC0033",low ="#0066CC", avg ="#33CC66"))+
+				theme(legend.position="none")
+			plotObj<-plotObj+labs(title='Empirical Data',plot.title=element_text(size=10))
+			plotObj<-plotObj+theme(axis.title.x=element_text(size=10),axis.title.y=element_text(size=10,angle=90))
+			plotObj<-plotObj+
+				labs(y=ifelse(yModel=="Bernoulli","Proportion of cases",
+				ifelse(yModel=="Binomial","Avg Proportion of occurrence",
+				ifelse(yModel=="Poisson","Avg Count",
+				ifelse(yModel=="Categorical","Avg Proportion of occurrence","Avg Y")))),x="Cluster")
+			plotObj<-plotObj+theme(plot.margin=unit(c(0,0,0,0),'lines'))+theme(plot.margin=unit(c(0.15,0.5,0.5,1),'lines'))
+			print(plotObj,vp=viewport(layout.pos.row=1:3,layout.pos.col=1))
+		}
 	}
 	# Create a bar chart of cluster sizes
 	plotObj<-ggplot(sizeDF)
@@ -1892,7 +1912,7 @@ summariseVarSelectRho<-function(runInfoObj){
 	
 
 # Function to compute the marginal model posterior (only for discrete covariates and Bernoulli outcome)
-margModelPosterior<-function(runInfoObj){
+margModelPosterior<-function(runInfoObj,allocation){
 
 	xModel=NULL
 	yModel=NULL
@@ -1908,12 +1928,16 @@ margModelPosterior<-function(runInfoObj){
 	nFilter=NULL
 	nSweeps=NULL
 	nProgress=NULL
-
+	
 
 	for (i in 1:length(runInfoObj)) assign(names(runInfoObj)[i],runInfoObj[[i]])
 
 	# this function only works for Bernoulli outcome and discrete covariates, so check that it is used correctly
-	if (xModel!="Discrete"||yModel!="Bernoulli") stop("ERROR: The computation of the marginal model posterior has only been implemented for Bernoulli outcome and discrete covariates.")
+	if (includeResponse) {
+		if (xModel!="Discrete"||yModel!="Bernoulli") stop("ERROR: The computation of the marginal model posterior has only been implemented for Bernoulli outcome and discrete covariates.")
+	} else {
+		if (xModel!="Discrete") stop("ERROR: The computation of the marginal model posterior has only been implemented for Bernoulli outcome and discrete covariates.")
+	}
 	# no variable selection has been implemented
 	if (varSelect==TRUE) print("Warning: Variable selection is not taken into account for the computation of marginal model posterior")
 	# the subjects with missing values are simply removed for now
@@ -2000,16 +2024,24 @@ margModelPosterior<-function(runInfoObj){
 
 	runInfoObj$hyperParams <- hyperParams
 
-	# open allocation file
-	zFileName <- file(file.path(directoryPath,paste(fileStem,'_z.txt',sep='')))
-	open(zFileName)
-	
 	# read first allocation iteration after burnin
 	firstLine<-ifelse(reportBurnIn,nBurn/nFilter+2,1)
 	skipLines<-ifelse(reportBurnIn,nBurn/nFilter+1,0)
 	lastLine<-(nSweeps+ifelse(reportBurnIn,nBurn+1,0))/nFilter	
-	zAllocCurrent<-scan(zFileName,what=integer(),skip=skipLines,nlines=1,quiet=T)
-	zAllocCurrent<-zAllocCurrent[1:nSubjects]
+
+	# open allocation file
+	if (missing(allocation)){
+		zFileName <- file(file.path(directoryPath,paste(fileStem,'_z.txt',sep='')))
+		open(zFileName)
+		zAllocCurrent<-scan(zFileName,what=integer(),skip=skipLines,nlines=1,quiet=T)
+		zAllocCurrent<-zAllocCurrent[1:nSubjects]
+	} else {
+		zAllocCurrent<-allocation[1:nSubjects]
+		firstLine<-0
+		skipLines<-0
+		lastLine<-0
+	}
+	
 
 	# initialise output vectors
 	margModPost<-rep(0,length=(lastLine-firstLine+1))
@@ -2025,30 +2057,34 @@ margModelPosterior<-function(runInfoObj){
 	# compute marginal model posterior
 	output<-.pZpXpY(zAlloc=zAllocCurrent, par=parFirstIter, clusterSizes=clusterSizes, nClusters=nClusters, runInfoObj=runInfoObj, alpha=alpha)
 	margModPost[1]<-output$margModPost
-	for (iter in (firstLine+1):lastLine){
-		if (iter%%nProgress==0) print(iter)
-		# identify allocations for this sweep
-		zAllocCurrent<-scan(zFileName,what=integer(),nlines=1,quiet=T)
-		zAllocCurrent<-zAllocCurrent[1:nSubjects]
-		# parameters
-		# number of elements in each cluster
-		clusterSizes<-table(zAllocCurrent)
-		# number of clusters
-		nClusters<-length(clusterSizes)
-		# computing the marginal likelihood
-		# version using the previous beta mode for next step	
-		if (nFixedEffects>0){
-			parTmp<-c(rep(0,nClusters),rep(0,nFixedEffects))
-		} else {
-			parTmp<-c(rep(0,nClusters))
-		}
+	if (missing(allocation)){
+		for (iter in (firstLine+1):lastLine){
+			if (iter%%nProgress==0) print(iter)
+			# identify allocations for this sweep
+			zAllocCurrent<-scan(zFileName,what=integer(),nlines=1,quiet=T)
+			zAllocCurrent<-zAllocCurrent[1:nSubjects]
+			# parameters
+			# number of elements in each cluster
+			clusterSizes<-table(zAllocCurrent)
+			# number of clusters
+			nClusters<-length(clusterSizes)
+			# computing the marginal likelihood
+			# version using the previous beta mode for next step	
+			if (nFixedEffects>0){
+				parTmp<-c(rep(0,nClusters),rep(0,nFixedEffects))
+			} else {
+				parTmp<-c(rep(0,nClusters))
+			}
+	
+			output<-.pZpXpY(zAlloc=zAllocCurrent,par=parTmp, clusterSizes=clusterSizes, nClusters=nClusters, runInfoObj = runInfoObj, alpha=alpha)
+			margModPost[iter-firstLine+1]<-output$margModPost
 
-		output<-.pZpXpY(zAlloc=zAllocCurrent,par=parTmp, clusterSizes=clusterSizes, nClusters=nClusters, runInfoObj = runInfoObj, alpha=alpha)
-		margModPost[iter-firstLine+1]<-output$margModPost
+		}	
+	}
+	if (missing(allocation)){
+		close(zFileName)
+	}
 
-	}	
-
-	close(zFileName)
 	write.table(margModPost,file.path(directoryPath,paste(fileStem,"_margModPost.txt",sep="")), col.names = FALSE,row.names = FALSE)
 	return(mean(margModPost))
 }

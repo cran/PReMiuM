@@ -65,6 +65,7 @@ SEXP profRegr(SEXP inputString) {
 	beginTime = time(NULL);
 	/* -----------Process the command line ---------*/
 	pReMiuMOptions options = processCommandLine(inputStr);
+
 	/* ---------- Set up the sampler object--------*/
 	// Initialise the sampler object
 	mcmcSampler<pReMiuMParams,pReMiuMOptions,
@@ -84,6 +85,7 @@ SEXP profRegr(SEXP inputString) {
 	pReMiuMSampler.userOutputFn(&writePReMiuMOutput);
 
 	// Seed the random number generator
+
 	pReMiuMSampler.seedGenerator(options.seed());
 
 	// Set the sampler specific variables
@@ -136,7 +138,6 @@ SEXP profRegr(SEXP inputString) {
 
 	}
 
-
 	if(options.varSelectType().compare("None")!=0){
 		// Add the variable selection moves
 		unsigned int firstSweep;
@@ -154,7 +155,13 @@ SEXP profRegr(SEXP inputString) {
 	}
 
 	// The Metropolis Hastings update for labels
-	pReMiuMSampler.addProposal("metropolisHastingsForLabels",1.0,1,1,&metropolisHastingsForLabels);
+	if(options.whichLabelSwitch().compare("123")==0){
+		pReMiuMSampler.addProposal("metropolisHastingsForLabels123",1.0,1,1,&metropolisHastingsForLabels123);
+	} else if (options.whichLabelSwitch().compare("12")==0){
+		pReMiuMSampler.addProposal("metropolisHastingsForLabels12",1.0,1,1,&metropolisHastingsForLabels12);
+	} else if(options.whichLabelSwitch().compare("3")==0){
+		pReMiuMSampler.addProposal("metropolisHastingsForLabels3",1.0,1,1,&metropolisHastingsForLabels3);
+	} 
 
 	// Gibbs for U
 	if(options.samplerType().compare("Truncated")!=0){
@@ -241,7 +248,6 @@ SEXP profRegr(SEXP inputString) {
 		pReMiuMSampler.addProposal("gibbsForSigmaSqY",1.0,1,1,&gibbsForSigmaSqY);
 	}
 
-
 	// Gibbs update for the allocation parameters
 	pReMiuMSampler.addProposal("gibbsForZ",1.0,1,1,&gibbsForZ);
 
@@ -255,12 +261,15 @@ SEXP profRegr(SEXP inputString) {
 
 	/* ---------- Initialise the chain ---- */
 	pReMiuMSampler.initialiseChain();
+
 	pReMiuMHyperParams hyperParams = pReMiuMSampler.chain().currentState().parameters().hyperParams();
 	unsigned int nClusInit = pReMiuMSampler.chain().currentState().parameters().workNClusInit();
+
 	// The following is only used if the sampler type is truncated
 	unsigned int maxNClusters = pReMiuMSampler.chain().currentState().parameters().maxNClusters();
 	/* ---------- Run the sampler --------- */
 	// Note: in this function the output gets written
+
 	pReMiuMSampler.run();
 
 	/* -- End the clock time and write the full run details to log file --*/
@@ -269,11 +278,10 @@ SEXP profRegr(SEXP inputString) {
 	string tmpStr = storeLogFileData(options,dataset,hyperParams,nClusInit,maxNClusters,timeInSecs);
 	pReMiuMSampler.appendToLogFile(tmpStr);
 
-
 	/* ---------- Clean Up ---------------- */
 	pReMiuMSampler.closeOutputFiles();
 
-	int err = 0;
+	//int err = 0;
 	return Rcpp::wrap(0);
 // alternative output
 //	return Rcpp::List::create(Rcpp::Named("yModel")=options.outcomeType());

@@ -18,18 +18,18 @@ SEXP calcDisSimMat(SEXP fileName, SEXP nSweeps, SEXP nBurn, SEXP nFilter,SEXP nS
 
     string fName = Rcpp::as<string>(fileName);
 
-    int nS = Rcpp::as<int>(nSweeps);
-    int nB = Rcpp::as<int>(nBurn);
-    int nF = Rcpp::as<int>(nFilter);
+    unsigned int nS = Rcpp::as<int>(nSweeps);
+    unsigned int nB = Rcpp::as<int>(nBurn);
+    unsigned int nF = Rcpp::as<int>(nFilter);
     unsigned long int nSj = Rcpp::as<int>(nSubjects);
-    int nPSj = Rcpp::as<int>(nPredictSubjects);
+    unsigned int nPSj = Rcpp::as<int>(nPredictSubjects);
 
     bool oLS = Rcpp::as<bool>(onlyLS);
 
     // Calculate how many samples we will have
-    int nLines = 1 + (nS+nB)/nF;
+    unsigned int nLines = 1 + (nS+nB)/nF;
     // Calculate when the burn in ends
-    int firstLine = 2+nB/nF;
+    unsigned int firstLine = 2+nB/nF;
 
     vector<double> disSimMat((nSj*(nSj-1))/2+nPSj*nSj,1.0);
 
@@ -134,7 +134,7 @@ SEXP pYGivenZW(SEXP betaIn,SEXP thetaIn,SEXP zAlloc,SEXP sigmaBeta,
 		SEXP yMat,SEXP betaW,SEXP nFixedEffects,SEXP nTableNames,SEXP constants,
 		SEXP maxNTableNames){
 
-	int nFE = Rcpp::as<int>(nFixedEffects);
+	unsigned int nFE = Rcpp::as<int>(nFixedEffects);
 	Rcpp::NumericVector beta(betaIn);
 	Rcpp::NumericVector bW(betaW);
 	double sigmaB = Rcpp::as<double>(sigmaBeta);
@@ -145,13 +145,13 @@ SEXP pYGivenZW(SEXP betaIn,SEXP thetaIn,SEXP zAlloc,SEXP sigmaBeta,
 	Rcpp::NumericVector yM(yMat);
 	double con = Rcpp::as<double>(constants);
 	Rcpp::IntegerVector nN(nTableNames);
-	int maxnN = Rcpp::as<int>(maxNTableNames);
+	unsigned int maxnN = Rcpp::as<int>(maxNTableNames);
 	double sigmaT = Rcpp::as<double>(sigmaTheta);
 	double dofT = Rcpp::as<double>(dofTheta);
 
     vector<double> thetaTmp(maxnN+1);
     unsigned int k=0;
-	for (unsigned int i=0; i<nN.size();i++) {
+	for (int i=0; i<nN.size();i++) {
 		thetaTmp.at(nN[i]) = theta[k];
 		k++;
 	}
@@ -176,7 +176,7 @@ SEXP pYGivenZW(SEXP betaIn,SEXP thetaIn,SEXP zAlloc,SEXP sigmaBeta,
 	// contribution from theta
 	double paramsThetaTmp = 1/pow(sigmaT,2);
 	double outputTheta = 0.0;
-	for (unsigned int i=0;i<theta.size();i++){
+	for (int i=0;i<theta.size();i++){
 		outputTheta = outputTheta+ log(dofT+pow(theta[i],2)*paramsThetaTmp);
 	}
 	outputTheta = outputTheta*0.5*(dofT+1);
@@ -186,7 +186,7 @@ SEXP pYGivenZW(SEXP betaIn,SEXP thetaIn,SEXP zAlloc,SEXP sigmaBeta,
 		// contribution from beta
 		double paramsBetaTmp = 1/pow(sigmaB,2);
 		double outputBeta = 0.0;
-		for (unsigned int i=0;i<beta.size();i++){
+		for (int i=0;i<beta.size();i++){
 			outputBeta = outputBeta+ log(dofB+pow(beta[i],2)*paramsBetaTmp);
 		}
 		outputBeta = outputBeta*0.5*(dofB+1);
@@ -203,14 +203,14 @@ SEXP GradpYGivenZW(SEXP betaIn,SEXP thetaIn,SEXP zAlloc, SEXP nSubjects,
     Rcpp::NumericVector theta(thetaIn);
     Rcpp::IntegerVector z(zAlloc);
     unsigned long int nSj = Rcpp::as<int>(nSubjects);
-    int nFE = Rcpp::as<int>(nFixedEffects);
+    unsigned int nFE = Rcpp::as<int>(nFixedEffects);
     Rcpp::IntegerVector nN(nTableNames);
-    int maxnN = Rcpp::as<int>(maxNTableNames);
+    unsigned int maxnN = Rcpp::as<int>(maxNTableNames);
     Rcpp::NumericVector yM(yMat);
 
     vector<double> thetaTmp(maxnN+1);
     unsigned int k=0;
-	for (unsigned int i=0; i<nN.size();i++) {
+	for (int i=0; i<nN.size();i++) {
 		thetaTmp.at(nN[i]) = theta[k];
 		k++;
 	}
@@ -234,11 +234,11 @@ SEXP GradpYGivenZW(SEXP betaIn,SEXP thetaIn,SEXP zAlloc, SEXP nSubjects,
 
 SEXP pZpX(SEXP nClusters, SEXP nCategories,SEXP aPhi, SEXP n,SEXP nCovariates,SEXP zAlloc, SEXP xMat, SEXP nNames,SEXP alpha){
 
-	int nC = Rcpp::as<int>(nClusters);
+	unsigned int nC = Rcpp::as<int>(nClusters);
 	Rcpp::NumericVector nCat(nCategories);
 	Rcpp::NumericVector nn(n);
 	Rcpp::NumericVector aP(aPhi);
-	int nCov = Rcpp::as<int>(nCovariates);
+	unsigned int nCov = Rcpp::as<int>(nCovariates);
 	Rcpp::NumericVector xM(xMat);
 	Rcpp::NumericVector z(zAlloc);
 	Rcpp::NumericVector names(nNames);
