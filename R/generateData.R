@@ -147,11 +147,6 @@ generateSampleDataFile<-function(clusterSummary){
 		}
 
 		mu<-theta
-		if (outcomeType=='Categorical'){
-			muTemp<-mu
-			mu[1]<-0
-			mu[2:nCategoriesY]<-muTemp
-		}
 		if(nFixedEffects>0){
 			if (outcomeType=='Categorical'){			
 				for (kk in 2:nCategoriesY){
@@ -255,7 +250,7 @@ clusSummaryCategoricalDiscrete<-function(){list(
 		list('theta'=c(0,-2,-2),
 		'covariateProbs'=list(c(0.8,0.1,0.1),
 			c(0.1,0.1,0.8),
-			c(0.1,0.1,0.8),
+			c(0.1,0.6,0.3),
 			c(0.1,0.1,0.8),
 			c(0.1,0.1,0.8)))))
 }

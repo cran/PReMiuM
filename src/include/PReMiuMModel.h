@@ -554,6 +554,7 @@ class pReMiuMParams{
 			// And will ensure that at this initial time sufficient
 			// space is allocated to prevent future allocations
 			unsigned int maxNClusters = 100;
+
 			if(nClusInit>100){
 				maxNClusters=nClusInit;
 			}

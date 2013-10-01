@@ -3,10 +3,11 @@
 \title{Marginal Model Posterior}
 \description{Compute the marginal model posterior.}
 \usage{
-margModelPosterior(runInfoObj)
+margModelPosterior(runInfoObj,allocation)
 }
 \arguments{
 \item{runInfoObj}{An object of type runInfoObj.}
+\item{allocation}{By default, if allocation is not provided, the _z.txt file is read to compute the marginal model posterior for all the partitions available there. If allocation is equal to a vector that corresponds to a partition, the marginal model posterior is computed for that given partition.}
 }
 \value{
 It returns a file in the output folder, with name ending in "_margModPost.txt", that contains the marginal model posterior. It also returns the mean of the values of the marginal model posterior as they appear in the file ending in "_margModPost.txt" in the output folder.

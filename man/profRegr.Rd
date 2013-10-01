@@ -7,9 +7,9 @@ profRegr(covNames, fixedEffectsNames, outcome="outcome",
         outcomeT=NA, data, output="output", hyper, predict, 
         nSweeps=1000, nBurn=1000, nProgress=500, nFilter=1, 
         nClusInit, seed, yModel="Bernoulli", xModel="Discrete", 
-        sampler="SliceDependent", alpha=-1, excludeY, 
+        sampler="SliceDependent", alpha=-1, excludeY=FALSE, 
         extraYVar=FALSE, varSelectType="None", entropy,reportBurnIn=FALSE,
-        run=TRUE, discreteCovs, continuousCovs)
+        run=TRUE, discreteCovs, continuousCovs, whichLabelSwitch="123")
 }
 \arguments{
 \item{covNames}{A vector of strings of the covariate names as by the column names in the data argument.}
@@ -46,14 +46,15 @@ See ?calcPredictions for more details and examples.
 \item{xModel}{The model type for the covariates. The options currently available are "Discrete", "Normal" and "Mixed". The default value is "Discrete".}
 \item{sampler}{The sampler type to be used. Options are "SliceDependent", "SliceIndependent" and "Truncated".  The default value is "SliceDependent".}
 \item{alpha}{The value to be used if alpha is to remain fixed. If a negative value is used then alpha is updated. The default value is -1.}
-\item{excludeY}{If included only the covariate data X is modelled. By default this is not included.}
-\item{extraYVar}{If set equal to TRUE extra Gaussian variance is included in the response model. By default the extra Gaussian variance is not included, so extraYVar=FALSE.}
+\item{excludeY}{If TRUE only the covariate data X is modelled. By default this is set to FALSE.}
+\item{extraYVar}{If set equal to TRUE extra Gaussian variance is included in the response model. This option is available only for Bernoulli, Binomial and Poisson response. By default the extra Gaussian variance is not included, so extraYVar=FALSE.}
 \item{varSelectType}{The type of variable selection to be used "None", "BinaryCluster" or "Continuous".  The "BinaryCluster" variable selection is the implementation of the novel variable selection formulation proposed by Papathomas, Molitor, Hoggart, Hastie, Richardson (2012) "Exploring data from genetic association studies using
 Bayesian variable selection and the Dirichlet process: application to searching for gene x gene patterns" in Genetic Epidemiology. The "Continuous" variable selection is based on the method proposed by Chung and Dunson (2009) "Nonparametric Bayes conditional distribution modelling with variable selection" in the Journal of the American Statistical Association. Both types of variable selection can be used with discrete, continuous or mixed covariates. The default value is "None".}
 \item{entropy}{If included then we compute allocation entropy. By default the allocation entropy is not included.}
 \item{run}{Logical. If TRUE then the MCMC is run. Set run=FALSE if the MCMC has been run already and it is only required to collect information about the run.}
 \item{discreteCovs}{The names of the discrete covariates among the covariate names, if xModel="Mixed". This and continuousCovs must be defined if xModel="Mixed", while covNames is ignored.}
 \item{continuousCovs}{The names of the discrete covariates among the covariate names, if xModel="Mixed". This and continuousCovs must be defined if xModel="Mixed", while covNames is ignored.}
+\item{whichLabelSwitch}{The label switching moves to run. The options available are moves 1, 2 and 3 ("123"), moves 1 and 2 ("12") and move 3 only ("3"). The moves are described in Hastie et al. (2013).}
 }
 \value{
 Once the C++ has completed the output from fitting the regression is stored in a number of text files in the directory specified. Files are produced
@@ -85,6 +86,7 @@ It returns a number of files in the output directory as well as a list with the 
 \item{xMat}{A matrix of the covariate data.}
 \item{yMat}{A matrix of the outcome data, including the offset if the outcome is Poisson and the number of trials if the outcome is Binomial.}
 \item{wMat}{A matrix of the fixed effect data.}
+\item{whichLabelSwitch}{The label switching moves that have been run. The options available are moves 1, 2 and 3 ("123"), moves 1 and 2 ("12") and move 3 only ("3"). The moves are described in Hastie et al. (2013).}
 }
 \section{Authors}{
 David Hastie, Department of Epidemiology and Biostatistics, Imperial College London, UK
@@ -98,6 +100,8 @@ Maintainer: Silvia Liverani <liveranis@gmail.com>
 \references{
 
 Liverani, S., Hastie, D. I., Papathomas, M. and Richardson, S. (2013) PReMiuM: An R package for Profile Regression Mixture Models using Dirichlet Processes. \emph{Submitted}. Available at http://uk.arxiv.org/abs/1303.2836
+
+Hastie, D. I., Liverani, S. and Richardson, S. (2013) Sampling from Dirichlet process mixture models with unknown concentration parameter: Mixing issues in large data implementations. \emph{Submitted}. Available at http://uk.arxiv.org/abs/1304.1778
 
 }
 \examples{

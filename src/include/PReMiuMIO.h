@@ -181,12 +181,21 @@ pReMiuMOptions processCommandLine(string inputStr){
 						break;
 					}
 					options.covariateType(covariateType);
+				}else if(inString.find("--whichLabelSwitch")!=string::npos){
+					size_t pos = inString.find("=")+1;
+					string whichLabelSwitch = inString.substr(pos,inString.size()-pos);
+					if(whichLabelSwitch.compare("123")!=0&&whichLabelSwitch.compare("12")!=0&&whichLabelSwitch.compare("3")!=0){
+						// Illegal covariate type entered
+						wasError=true;
+						break;
+					}
+					options.whichLabelSwitch(whichLabelSwitch);
 				}else if(inString.find("--sampler")!=string::npos){
 					size_t pos = inString.find("=")+1;
 					string samplerType = inString.substr(pos,inString.size()-pos);
 					if(samplerType.compare("SliceDependent")!=0&&samplerType.compare("SliceIndependent")!=0
 							&&samplerType.compare("Truncated")!=0){
-						// Illegal covariate type entered
+						// Illegal sampler type entered
 						wasError=true;
 						break;
 					}
@@ -700,7 +709,6 @@ void readHyperParamsFromFile(const string& filename,pReMiuMHyperParams& hyperPar
 			hyperParams.truncationEps(truncationEps);
 		}
 	}
-
 }
 
 // Initialise the PReMiuM object (needed in this file as it calls
@@ -747,6 +755,13 @@ void initialisePReMiuM(baseGeneratorType& rndGenerator,
 	params.setSizes(nSubjects,nCovariates,nDiscreteCovs,nContinuousCovs,nFixedEffects,nCategoriesY,nPredictSubjects,nCategories,nClusInit,covariateType);
 	unsigned int maxNClusters=params.maxNClusters();
 
+	// Define a uniform random number generator
+	randomUniform unifRand(0,1);
+
+	if(nClusInit==0){
+		nClusInit=50+(unsigned int)11*unifRand(rndGenerator);
+	}
+
 	// Fix the number of clusters if we are using the truncated sampler
 	if(samplerType.compare("Truncated")==0){
 		maxNClusters=20;
@@ -773,9 +788,6 @@ void initialisePReMiuM(baseGeneratorType& rndGenerator,
 	params.workContinuousX(dataset.continuousX());
 
 	// Now initialise the actual parameters
-	// Define a uniform random number generator
-	randomUniform unifRand(0,1);
-
 	randomGamma gammaRand(hyperParams.shapeAlpha(),1.0/hyperParams.rateAlpha());
 
 	double alpha=gammaRand(rndGenerator);
@@ -786,9 +798,7 @@ void initialisePReMiuM(baseGeneratorType& rndGenerator,
 
 	vector<unsigned int> nXInCluster(maxNClusters,0);
 	unsigned int maxZ=0;
-	if(nClusInit==0){
-		nClusInit=50+(unsigned int)11*unifRand(rndGenerator);
-	}
+
 	params.workNClusInit(nClusInit);
 	for(unsigned int i=0;i<nSubjects+nPredictSubjects;i++){
 		int c=(int) nClusInit*unifRand(rndGenerator);
@@ -797,9 +807,12 @@ void initialisePReMiuM(baseGeneratorType& rndGenerator,
 			maxZ=c;
 		}
 		if(i<nSubjects){
+
 			nXInCluster[c]++;
+
 		}
 	}
+
 	params.workNXInCluster(nXInCluster);
 	params.workMaxZi(maxZ);
 
@@ -850,9 +863,9 @@ void initialisePReMiuM(baseGeneratorType& rndGenerator,
 		for(unsigned int i=0;i<nSubjects+nPredictSubjects;i++){
 			int zi=params.z(i);
 			double ui=0.0;
-			if(samplerType.compare("SliceDependent")){
+			if(samplerType.compare("SliceDependent")==0){
 				ui = exp(params.logPsi(zi))*unifRand(rndGenerator);
-			}else if(samplerType.compare("SliceIndependent")){
+			}else if(samplerType.compare("SliceIndependent")==0){
 				ui = hyperParams.workXiSlice(zi)*unifRand(rndGenerator);
 			}
 			if(ui<minU){
@@ -874,6 +887,7 @@ void initialisePReMiuM(baseGeneratorType& rndGenerator,
 
 		maxNClusters = maxZ+1;
 		if(samplerType.compare("SliceIndependent")==0){
+
 			maxNClusters=2+(int)((log(params.workMinUi())-log(1.0-hyperParams.rSlice()))/log(hyperParams.rSlice()));
 		}
 
@@ -1292,7 +1306,6 @@ void initialisePReMiuM(baseGeneratorType& rndGenerator,
 		}
 
 	}
-
 }
 
 // Write the sampler output
@@ -1423,7 +1436,7 @@ void writePReMiuMOutput(mcmcSampler<pReMiuMParams,pReMiuMOptions,pReMiuMPropPara
 
 		// File indices
 		int nClustersInd=-1,psiInd=-1,phiInd=-1,muInd=-1,SigmaInd=-1,zInd=-1,entropyInd=-1,alphaInd=-1;
-		int logPostInd=-1,nMembersInd=-1,alphaPropInd;
+		int logPostInd=-1,nMembersInd=-1,alphaPropInd=-1;
 		int thetaInd=-1,betaInd=-1,thetaPropInd=-1,betaPropInd=-1,sigmaSqYInd=-1,epsilonInd=-1;
 		int sigmaEpsilonInd=-1,epsilonPropInd=-1,omegaInd=-1,rhoInd=-1;
 		int rhoOmegaPropInd=-1,gammaInd=-1,nullPhiInd=-1,nullMuInd=-1;
