@@ -13,13 +13,13 @@ setHyperparams(shapeAlpha=NULL,rateAlpha=NULL,
      useReciprocalNCatsPhi=NULL,aPhi=NULL,mu0=NULL,Tau0=NULL,R0=NULL,
      kapp0=NULL,muTheta=NULL,sigmaTheta=NULL,dofTheta=NULL,muBeta=NULL,
      sigmaBeta=NULL,dofBeta=NULL,shapeTauEpsilon=NULL,
-     rateTauEpsilon=NULL,aRho=NULL,bRho=NULL,shapeSigmaSqY=NULL,
+     rateTauEpsilon=NULL,aRho=NULL,bRho=NULL,atomRho=NULL,shapeSigmaSqY=NULL,
      scaleSigmaSqY=NULL,rSlice=NULL,truncationEps=NULL)
 }
 \arguments{
 
-\item{shapeAlpha}{The shape parameter for Gamma prior on alpha (default=1.0)}
-\item{rateAlpha}{The inverse-scale (rate) parameter for the Gamma prior on alpha (default=0.5)}
+\item{shapeAlpha}{The shape parameter for Gamma prior on alpha (default=2)}
+\item{rateAlpha}{The inverse-scale (rate) parameter for the Gamma prior on alpha (default=1)}
 \item{useReciprocalNCatsPhi}{Boolean denoting whether the vector phi_j (for covariate j) have all elements equal (only used in the discrete covariate case, default=true)}
 \item{aPhi}{The vector of parameters for the Dirichlet prior on phi_j. Element j corresponds to covariate j which then has a prior Dirichlet(aPhi[j],aPhi[j],....,aPhi[j]). (Only used in discrete case if useReciprocalNCatsPhi is false, default=(1 1 1 ... 1))}
 \item{mu0}{The mean vector for mu_c in the Normal covariate case (only used in Normal covariate case, default=empirical covariate means)}
@@ -36,6 +36,7 @@ setHyperparams(shapeAlpha=NULL,rateAlpha=NULL,
 \item{rateTauEpsilon}{Inverse-scale (rate) parameter for gamma distribution for prior for precision tau of extra variation errors epsilon (only used if extra variation is used i.e. extraYVar argument is used, default=0.5)}
 \item{aRho}{Parameter for beta distribution for prior on rho in variable selection (default=0.5)}
 \item{bRho}{Parameter for beta distribution for prior on rho in variable selection (default=0.5)}
+\item{atomRho}{Parameter for the probability for the atom at zero, i.e. the 0.5 probability in w_j distributed Bernoulli(0.5) in the formulation of the sparsity inducing prior (default=0.5). This parameter must be in the interval (0,1], where atomRho=1 corresponds to the case where the prior for rho is a Beta(aRho,bRho).}
 \item{shapeSigmaSqY}{Shape parameter of inverse-gamma prior for sigma_Y^2 (only used in the Normal response model, default =2.5)}
 \item{scaleSigmaSqY}{Scale parameter of inverse-gamma prior for sigma_Y^2 (only used in the Normal response model, default =2.5)}
 \item{rSlice}{Slice parameter for independent slice sampler such that xi_c = (1-rSlice)*rSlice^c for c=0,1,2,... (only used for slice independent sampler i.e. sampler=SliceIndependent, default 0.75).}
@@ -54,7 +55,7 @@ Maintainer: Silvia Liverani <liveranis@gmail.com>
 }
 \references{
 
-Liverani, S., Hastie, D. I., Papathomas, M. and Richardson, S. (2013) PReMiuM: An R package for Profile Regression Mixture Models using Dirichlet Processes. \emph{Submitted}. Available at http://uk.arxiv.org/abs/1303.2836
+Liverani, S., Hastie, D. I., Azizi, L., Papathomas, M. and Richardson, S. (2013) PReMiuM: An R package for Profile Regression Mixture Models using Dirichlet Processes. \emph{Submitted}. Available at http://uk.arxiv.org/abs/1303.2836
 
 }
 \examples{

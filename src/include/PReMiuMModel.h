@@ -199,6 +199,7 @@ class pReMiuMHyperParams{
 
 			_aRho = 0.5;
 			_bRho = 0.5;
+			_atomRho= 0.5;
 
 			_shapeSigmaSqY = 2.5;
 			_scaleSigmaSqY = 2.5;
@@ -371,6 +372,14 @@ class pReMiuMHyperParams{
 			_bRho = b;
 		}
 
+		double atomRho() const{
+			return _atomRho;
+		}
+
+		void atomRho(const double& atom){
+			_atomRho = atom;
+		}
+
 		double shapeSigmaSqY() const{
 			return _shapeSigmaSqY;
 		}
@@ -444,6 +453,7 @@ class pReMiuMHyperParams{
 			_rateTauEpsilon = hyperParams.rateTauEpsilon();
 			_aRho = hyperParams.aRho();
 			_bRho = hyperParams.bRho();
+			_atomRho = hyperParams.atomRho();
 			_shapeSigmaSqY = hyperParams.shapeSigmaSqY();
 			_scaleSigmaSqY = hyperParams.scaleSigmaSqY();
 			_workSqrtTau0 = hyperParams.workSqrtTau0();
@@ -498,9 +508,10 @@ class pReMiuMHyperParams{
 		double _rateTauEpsilon;
 
 		// Hyper parameters for prior for tauEpsilon (for variable selection)
-		// Prior is rho ~ Beta(a,b)
+		// Prior is rho ~ Beta(a,b) with a sparsity inducing atom Bernoulli(atomRho)
 		double _aRho;
 		double _bRho;
+		double _atomRho;
 
 		//Hyper parameter for prior for sigma_y^2 (for normal response model)
 		// Prior is sigma_y^2 ~ InvGamma(shapeSigmaSqY,scaleSigmaSqY)
@@ -1166,6 +1177,17 @@ class pReMiuMParams{
 			_alpha=alphaVal;
 		}
 
+		/// \brief Return the hyper parameter dPitmanYor
+		double dPitmanYor() const{
+			return _dPitmanYor;
+		}
+
+		/// \brief Set the hyper parameter dPitmanYor
+		void dPitmanYor(const double& dPitmanYorVal){
+			_dPitmanYor=dPitmanYorVal;
+		}
+
+
 		/// \brief Return the mean y variables
 		vector<double> lambda() const{
 			return _lambda;
@@ -1764,6 +1786,7 @@ class pReMiuMParams{
 			_theta = params.theta();
 			_beta = params.beta();
 			_alpha = params.alpha();
+			_dPitmanYor = params.dPitmanYor();
 			_lambda = params.lambda();
 			_tauEpsilon = params.tauEpsilon();
 			_z = params.z();
@@ -1834,6 +1857,9 @@ class pReMiuMParams{
 
 		/// \brief The hyper parameter for dirichlet model
 		double _alpha;
+
+		/// \brief The discount hyper parameter for the pitman-yor process prior
+		double _dPitmanYor;
 
 		/// \brief The mean Y values (if required)
 		vector<double> _lambda;
@@ -2027,6 +2053,19 @@ double logPYiGivenZiWiCategorical(const pReMiuMParams& params, const pReMiuMData
 }
 
 
+double logPYiGivenZiWiSurvival(const pReMiuMParams& params, const pReMiuMData& dataset,
+						const unsigned int& nFixedEffects,const int& zi,
+						const unsigned int& i){
+
+	double lambda = 0.0;
+	for(unsigned int j=0;j<nFixedEffects;j++){
+		lambda+=params.beta(j,0)*dataset.W(i,j);
+	}
+	lambda=exp(params.theta(zi,0)+lambda);
+	return logPdfWeibullCensored(dataset.continuousY(i), lambda, 5, dataset.censoring(i));
+}
+
+
 vector<double> pReMiuMLogPost(const pReMiuMParams& params,
 								const mcmcModel<pReMiuMParams,
 												pReMiuMOptions,
@@ -2115,6 +2154,8 @@ vector<double> pReMiuMLogPost(const pReMiuMParams& params,
 			logPYiGivenZiWi = &logPYiGivenZiWiCategorical;
 		}else if(outcomeType.compare("Normal")==0){
 			logPYiGivenZiWi = &logPYiGivenZiWiNormal;
+		}else if(outcomeType.compare("Survival")==0){
+			logPYiGivenZiWi = &logPYiGivenZiWiSurvival;
 		}
 
 		for(unsigned int i=0;i<nSubjects;i++){
@@ -2137,12 +2178,13 @@ vector<double> pReMiuMLogPost(const pReMiuMParams& params,
 	// Prior for V (we only need to include these up to maxNCluster, but we do need
 	// to include all V, whether or not a cluster is empty, as the V themselves
 	//don't correspond to a cluster
+	unsigned int maxZ = params.workMaxZi();
 	for(unsigned int c=0;c<maxNClusters;c++){
-		logPrior+=logPdfBeta(params.v(c),1.0,params.alpha());
+		logPrior+=logPdfBeta(params.v(c),1.0-params.dPitmanYor(),params.alpha()+params.dPitmanYor()*(c+1));
 	}
 
 	// Prior for alpha
-	if(fixedAlpha<0){
+	if(fixedAlpha<=-1){
 		logPrior+=logPdfGamma(params.alpha(),hyperParams.shapeAlpha(),hyperParams.rateAlpha());
 	}
 
@@ -2205,12 +2247,13 @@ vector<double> pReMiuMLogPost(const pReMiuMParams& params,
 		}
 
 		// We can add in the prior for rho and omega
-		logPrior+=log(0.5);
+		logPrior+=log(hyperParams.atomRho());
 		for(unsigned int j=0;j<nCovariates;j++){
 			if(params.omega(j)==1){
 				logPrior+=logPdfBeta(params.rho(j),hyperParams.aRho(),hyperParams.bRho());
 			}
 		}
+
 	}
 
 	if(includeResponse){
@@ -2325,7 +2368,7 @@ double logCondPostRhoOmegaj(const pReMiuMParams& params,
 			out+=params.workLogPXiGivenZi(i);
 		}
 	}else{
-
+		
 		// Add in contribution from prior
 		if(params.omega(j)==1){
 			for(unsigned int c=0;c<maxNClusters;c++){
@@ -2344,9 +2387,9 @@ double logCondPostRhoOmegaj(const pReMiuMParams& params,
 	// We can add in the prior for rho and omega
 	// We keep the loop here because it saves evaluations in the continuous case
 	for(unsigned int j1=0;j1<nCovariates;j1++){
-		out+=log(0.5);
-		if(params.omega(j1)==1){
-			out+=logPdfBeta(params.rho(j1),hyperParams.aRho(),hyperParams.bRho());
+		out+=log(hyperParams.atomRho());
+		if (params.omega(j1)==1){
+				out+=logPdfBeta(params.rho(j1),hyperParams.aRho(),hyperParams.bRho());
 		}
 	}
 	return out;
@@ -2423,6 +2466,8 @@ double logCondPostThetaBeta(const pReMiuMParams& params,
 		logPYiGivenZiWi = &logPYiGivenZiWiCategorical;
 	}else if(outcomeType.compare("Normal")==0){
 		logPYiGivenZiWi = &logPYiGivenZiWiNormal;
+	}else if(outcomeType.compare("Survival")==0){
+		logPYiGivenZiWi = &logPYiGivenZiWiSurvival;
 	}
 
 

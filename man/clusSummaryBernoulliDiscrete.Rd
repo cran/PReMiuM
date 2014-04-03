@@ -1,5 +1,7 @@
 \name{clusSummaryBernoulliDiscrete}
 \alias{clusSummaryBernoulliDiscrete}
+\alias{clusSummaryBernoulliNormal}
+\alias{clusSummaryBernoulliDiscreteSmall}
 \alias{clusSummaryBinomialNormal}
 \alias{clusSummaryCategoricalDiscrete}
 \alias{clusSummaryNormalDiscrete}
@@ -12,6 +14,8 @@
 \description{Definition of skeleton of sample datasets for profile regression.}
 \usage{
 clusSummaryBernoulliDiscrete()
+clusSummaryBernoulliNormal
+clusSummaryBernoulliDiscreteSmall()
 clusSummaryBinomialNormal()
 clusSummaryCategoricalDiscrete()
 clusSummaryNormalDiscrete()
@@ -24,6 +28,10 @@ clusSummaryBernoulliMixed()
 \section{Details}{
 
 clusSummaryBernoulliDiscrete generates a dataset with Bernoulli outcome and discrete covariates.
+
+clusSummaryBernoulliNormal generates a dataset with Bernoulli outcome and Normal covariates.
+
+clusSummaryBernoulliDiscreteSmall generates a dataset with Bernoulli outcome and discrete covariates (with smaller cluster sizes).
 
 clusSummaryBinomialNormal generates a dataset with Binomial outcome and discrete covariates.
 
@@ -70,7 +78,7 @@ Maintainer: Silvia Liverani <liveranis@gmail.com>
 }
 \references{
 
-Liverani, S., Hastie, D. I., Papathomas, M. and Richardson, S. (2013) PReMiuM: An R package for Profile Regression Mixture Models using Dirichlet Processes. \emph{Submitted}. Available at http://uk.arxiv.org/abs/1303.2836
+Liverani, S., Hastie, D. I., Azizi, L., Papathomas, M. and Richardson, S. (2013) PReMiuM: An R package for Profile Regression Mixture Models using Dirichlet Processes. \emph{Submitted}. Available at http://uk.arxiv.org/abs/1303.2836
 
 }
 \examples{

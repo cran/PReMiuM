@@ -136,6 +136,14 @@ double logPdfMultinomialSizeOne(const unsigned int& x, const vector<double>& p){
        return log(p[x]);
 }
 
+double logPdfWeibullCensored(const double& x, const double& shape, const double& scale, const unsigned int& censoring){
+
+	double out = 0.0;
+	if (censoring == 1) out = log(scale) + log(shape) + (shape-1) * log(x) ;
+	out = out  - scale* pow( x,shape);
+	return out;
+}
+
 double logPdfMultivarNormal(const unsigned int& sizeX, const VectorXd& x,const VectorXd& meanVec,const MatrixXd& sqrtPrecMat,const double& logDetPrecMat){
 	// If S is the (upper triangular matrix) square root of the precision P, then S'S=P
 

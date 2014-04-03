@@ -777,8 +777,9 @@ void gibbsForVActive(mcmcChain<pReMiuMParams>& chain,
 
 	double tmp=0.0;
 	double alpha = currentParams.alpha();
+	double dPitmanYor = currentParams.dPitmanYor();
 	for(unsigned int c=0;c<=maxZ;c++){
-		double vVal = betaRand(rndGenerator,1.0+currentParams.workNXInCluster(c),alpha+sumCPlus1ToMaxMembers[c]);
+		double vVal = betaRand(rndGenerator,1.0+currentParams.workNXInCluster(c)-dPitmanYor,alpha+sumCPlus1ToMaxMembers[c]+dPitmanYor*(c+1));
 		currentParams.v(c,vVal);
 		// Set psi
 		currentParams.logPsi(c,tmp+log(vVal));
@@ -1672,12 +1673,13 @@ void gibbsForVInActive(mcmcChain<pReMiuMParams>& chain,
 	vector<double> logPsiNew=currentParams.logPsi();
 
 	double alpha = currentParams.alpha();
+	double dPitmanYor = currentParams.dPitmanYor();
 
 	if(samplerType.compare("Truncated")==0){
 		// Just sample from the prior
 
 		for(unsigned int c=maxZ+1;c<maxNClusters;c++){
-			double v=betaRand(rndGenerator,1.0,alpha);
+			double v=betaRand(rndGenerator,1.0-dPitmanYor,alpha+dPitmanYor*c);
 			double logPsi=log(v)+log(1-vNew[c-1])-log(vNew[c-1])+logPsiNew[c-1];
 			if(c>=vNew.size()){
 				vNew.push_back(v);
@@ -1711,7 +1713,7 @@ void gibbsForVInActive(mcmcChain<pReMiuMParams>& chain,
 			}else{
 				c++;
 				// We need a new sampled value of v
-				double v=betaRand(rndGenerator,1.0,alpha);
+				double v=betaRand(rndGenerator,1.0-dPitmanYor,alpha+dPitmanYor*c);
 				double logPsi=log(v)+log(1-vNew[c-1])-log(vNew[c-1])+logPsiNew[c-1];
 				if(c>=vNew.size()){
 					vNew.push_back(v);
@@ -2212,7 +2214,7 @@ void metropolisHastingsForRhoOmega(mcmcChain<pReMiuMParams>& chain,
 
 		// Propose from the priors
 		double& stdDev = propParams.rhoStdDev(j);
-		if(unifRand(rndGenerator)<0.5){
+		if(unifRand(rndGenerator)>hyperParams.atomRho()){
 			// Proposing an omega 0
 			if(currentOmega[j]==0){
 				// Nothing to do as move to the same place
@@ -2566,8 +2568,8 @@ void gibbsForZ(mcmcChain<pReMiuMParams>& chain,
 			for(unsigned int c=0;c<maxNClusters;c++){
 				if(u[i]<testBound[c]){
 					VectorXd workMuStar=currentParams.workMuStar(c);
-
 					VectorXd xi=VectorXd::Zero(nNotMissing);
+//std::cout<<"n "<<nNotMissing<<std::endl;
 					VectorXd muStar=VectorXd::Zero(nNotMissing);
 					MatrixXd sqrtTau=MatrixXd::Zero(nNotMissing,nNotMissing);
 					double logDetTau =0.0;
@@ -2584,12 +2586,13 @@ void gibbsForZ(mcmcChain<pReMiuMParams>& chain,
 						MatrixXd Tau=MatrixXd::Zero(nNotMissing,nNotMissing);
 						unsigned int j=0;
 						for(unsigned int j0=0;j0<nContinuousCovs;j0++){
-							if(!missingX[i][j0]){
+							if(!missingX[i][nDiscreteCovs+j0]){
+//std::cout<<j<<std::endl;
 								xi(j)=currentParams.workContinuousX(i,j0);
 								muStar(j)=workMuStar(j0);
 								unsigned int r=0;
 								for(unsigned int j1=0;j1<nContinuousCovs;j1++){
-									if(!missingX[i][j1]){
+									if(!missingX[i][nDiscreteCovs+j1]){
 										Sigma(j,r)=workSigma(j0,j1);
 										r++;
 									}
@@ -2625,6 +2628,8 @@ void gibbsForZ(mcmcChain<pReMiuMParams>& chain,
 				logPYiGivenZiWi = &logPYiGivenZiWiNormal;
 			}else if(outcomeType.compare("Categorical")==0){
 				logPYiGivenZiWi = &logPYiGivenZiWiCategorical;
+			}else if(outcomeType.compare("Survival")==0){
+				logPYiGivenZiWi = &logPYiGivenZiWiSurvival;
 			}
 		}
 	}

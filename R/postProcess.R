@@ -23,7 +23,7 @@
 
 is.wholenumber <- function(x, tol = .Machine$double.eps^0.5)  abs(x - round(x)) < tol
 
-profRegr<-function(covNames, fixedEffectsNames, outcome="outcome", outcomeT=NA, data, output="output", hyper, predict, nSweeps=1000, nBurn=1000, nProgress=500, nFilter=1, nClusInit, seed, yModel="Bernoulli", xModel="Discrete", sampler="SliceDependent", alpha=-1, excludeY=FALSE, extraYVar=FALSE, varSelectType="None", entropy,reportBurnIn=FALSE, run=TRUE, discreteCovs, continuousCovs, whichLabelSwitch="123"){
+profRegr<-function(covNames, fixedEffectsNames, outcome="outcome", outcomeT=NA, data, output="output", hyper, predict, nSweeps=1000, nBurn=1000, nProgress=500, nFilter=1, nClusInit, seed, yModel="Bernoulli", xModel="Discrete", sampler="SliceDependent", alpha=-2, dPitmanYor=0, excludeY=FALSE, extraYVar=FALSE, varSelectType="None", entropy,reportBurnIn=FALSE, run=TRUE, discreteCovs, continuousCovs, whichLabelSwitch="123"){
 
 	# suppress scientific notation
 	options(scipen=999)
@@ -37,7 +37,7 @@ profRegr<-function(covNames, fixedEffectsNames, outcome="outcome", outcomeT=NA, 
 	
 	if (!is.data.frame(data)) stop("Input data must be a data.frame with outcome, covariates and fixed effect names as column names.")
 
-	if (extraYVar==TRUE&(yModel=="Categorical"||yModel=="Normal")) stop("Option extraYVar is only available for Bernoulli, Binomial and Poisson response.")
+	if (extraYVar==TRUE&(yModel=="Categorical"||yModel=="Normal"||yModel=="Survival")) stop("Option extraYVar is only available for Bernoulli, Binomial and Poisson response.")
 
 	# open file to write output
 	fileName<-paste(output,"_input.txt",sep="")
@@ -150,18 +150,22 @@ profRegr<-function(covNames, fixedEffectsNames, outcome="outcome", outcomeT=NA, 
 		}
 	} else {
 		nFixedEffects<-0
+		if (yModel=="Survival") stop("ERROR: For the current implementation of Survival outcome the fixed effects must be provided. ")
 	}
 
 	#  extra outcome data
-	if (yModel=="Poisson"||yModel=="Binomial") {
+	if (yModel=="Poisson"||yModel=="Binomial"||yModel=="Survival") {
 		if(is.na(outcomeT)){
-			stop ("It is required to set outcomeT for Poisson (offset) or Binomial (number of trials) outcome.")
+			stop ("It is required to set outcomeT for Poisson (offset), Binomial (number of trials) or Survival (censoring) outcome.")
 		} else {
 			indexOutcomeT <- which(colnames(data)==outcomeT)
+			if (yModel=="Survival") {
+				if (sum(names(table(data[indexOutcomeT])) == c("0","1"))!=2) stop("If yModel is Survival, variable outcomeT corresponds to the censoring of the outcome. Therefore, it must be coded 0 and 1.")
+			}
 			dataMatrix <- cbind(dataMatrix,data[indexOutcomeT])
 		}
 	} else {
-		if(!is.na(outcomeT)) stop ("It is only required to set outcomeT for Poisson and Binomial outcome.")
+		if(!is.na(outcomeT)) stop ("It is only required to set outcomeT for Poisson, Binomial and Survival outcome.")
 	}		
 
 	# print number of subjects
@@ -197,9 +201,14 @@ profRegr<-function(covNames, fixedEffectsNames, outcome="outcome", outcomeT=NA, 
 		}		
 		write(t(as.matrix(predict[,c(covNames)])), paste(output,"_predict.txt",sep=""),append=T,ncolumns=length(covNames))
 		if (length(intersect(outcome,names(predict)))>0) {
+			if (nFixedEffects>0 ) {
 			if (length(intersect(fixedEffectsNames,names(predict)))==length(fixedEffectsNames)) {
 				write(nPreds, paste(output,"_predictFull.txt",sep=""),ncolumns=1)
-				write(t(as.matrix(predict[,c(outcome,fixedEffectsNames)])), paste(output,"_predictFull.txt",sep=""),append=T,ncolumns=(1+length(fixedEffectsNames)))
+				if (yModel=="Poisson" || yModel=="Binomial"||yModel=="Survival"){
+					write(t(as.matrix(predict[,c(outcome,outcomeT,fixedEffectsNames)])), paste(output,"_predictFull.txt",sep=""),append=T,ncolumns=(2+length(fixedEffectsNames)))
+				} else {
+					write(t(as.matrix(predict[,c(outcome,fixedEffectsNames)])), paste(output,"_predictFull.txt",sep=""),append=T,ncolumns=(1+length(fixedEffectsNames)))				
+				}
 				fullPredictFile<-TRUE
 			} else {
 				write(nPreds, paste(output,"_predictFull.txt",sep=""),ncolumns=1)
@@ -207,6 +216,19 @@ profRegr<-function(covNames, fixedEffectsNames, outcome="outcome", outcomeT=NA, 
 				write(t(predictFixedEffectsNA), paste(output,"_predictFull.txt",sep=""),append=T,ncolumns=(1+length(fixedEffectsNames)))
 				fullPredictFile<-TRUE
 			}
+			} else {
+
+				write(nPreds, paste(output,"_predictFull.txt",sep=""),ncolumns=1)
+				if (yModel=="Poisson" || yModel=="Binomial" ||yModel == "Survival"){
+					predictFixedEffectsNA<-as.matrix(predict[,c(outcome,outcomeT)])
+					write(t(predictFixedEffectsNA), paste(output,"_predictFull.txt",sep=""),append=T,ncolumns=2)
+				} else {
+					predictFixedEffectsNA<-as.matrix(predict[,c(outcome)])
+					write(t(predictFixedEffectsNA), paste(output,"_predictFull.txt",sep=""),append=T,ncolumns=1)
+				}
+				fullPredictFile<-TRUE
+			}
+
 		} else {
 			fullPredictFile<-FALSE
 		}
@@ -219,7 +241,19 @@ profRegr<-function(covNames, fixedEffectsNames, outcome="outcome", outcomeT=NA, 
 
 	# other checks to ensure that there are no errors when calling the program
 	if (xModel!="Discrete"&xModel!="Normal"&xModel!="Mixed") stop("This xModel is not defined.")
-	if (yModel!="Poisson"&yModel!="Binomial"&yModel!="Bernoulli"&yModel!="Normal"&yModel!="Categorical") stop("This yModel is not defined.")
+	if (yModel!="Poisson"&yModel!="Binomial"&yModel!="Bernoulli"&yModel!="Normal"&yModel!="Categorical"&yModel!="Survival") stop("This yModel is not defined.")
+
+	# conditions for alpha and dPitmanYor parameters	
+	# checks that dPitmanYor is in the correct interval
+	if (dPitmanYor<0&dPitmanYor>=1) stop("dPitmanYor must belongto the interval [0,1).")
+	# if alpha < 0 then we have a Dirichlet prior, so cannot use dPitmanYor
+	# if the user asks for alpha<0 and dPitmanYor>0 we stop and give an error message to ensure the user is aware
+	if (alpha<=-1&&dPitmanYor>0) stop("Setting alpha < 0 (the default is -2) and dPitmanYor > 0 is not allowed.")
+	# the third label switching move is only for Dirichlet process prior, not for Pitman-Yor process prior 
+	if (dPitmanYor>0) whichLabelSwitch<-"12"
+	if ((alpha>=-1)&(alpha < -dPitmanYor)) stop("It is a condition of the Pitman-Yor process prior that alpha > - dPitmanYor.")
+	if (dPitmanYor>0&sampler!="Truncated") stop("The Pitman-Yor process prior has been implemented to use with the Truncated sampler only.")
+	#if (dPitmanYor>0&sampler=="Truncated") print("Note that for the Pitman-Yor process prior there might be en error when using the Truncated sampler. This is due to the way that the bound on the number of clusters is computed.")
 
 	inputString<-paste("PReMiuM --input=",fileName," --output=",output," --xModel=",xModel," --yModel=",yModel," --varSelect=",varSelectType," --whichLabelSwitch=",whichLabelSwitch,sep="")
 
@@ -281,6 +315,10 @@ profRegr<-function(covNames, fixedEffectsNames, outcome="outcome", outcomeT=NA, 
 		if (!is.null(hyper$bRho)){
 			write(paste("bRho=",hyper$bRho,sep=""),hyperFile,append=T)
 		}
+		if (!is.null(hyper$atomRho)){
+			if (hyper$atomRho<=0 || hyper$atomRho >1) stop("Hyperparameter atomRho must be in (0,1]. See ?setHyperparams for help.")
+			write(paste("atomRho=",hyper$atomRho,sep=""),hyperFile,append=T)
+		}
 		if (!is.null(hyper$shapeSigmaSqY)){
 			write(paste("shapeSigmaSqY=",hyper$shapeSigmaSqY,sep=""),hyperFile,append=T)
 		}
@@ -297,6 +335,7 @@ profRegr<-function(covNames, fixedEffectsNames, outcome="outcome", outcomeT=NA, 
 
 	if (reportBurnIn) inputString<-paste(inputString," --reportBurnIn",sep="")
 	if (!missing(alpha)) inputString<-paste(inputString," --alpha=",alpha,sep="")
+	if (!missing(dPitmanYor)) inputString<-paste(inputString," --dPitmanYor=",dPitmanYor,sep="")
 	if (!missing(sampler)) inputString<-paste(inputString," --sampler=",sampler,sep="")
 	if (!missing(hyper)) inputString<-paste(inputString," --hyper=",hyperFile,sep="")
 	if (!missing(predict)) inputString<-paste(inputString," --predict=",paste(output,"_predict.txt",sep=""),sep="")
@@ -311,6 +350,7 @@ profRegr<-function(covNames, fixedEffectsNames, outcome="outcome", outcomeT=NA, 
 	if (!missing(entropy)) inputString<-paste(inputString," --entropy",sep="")
 
 	if (run) .Call('profRegr', inputString, PACKAGE = 'PReMiuM')
+
 
 	# define directory path and fileStem
 	outputSplit <- strsplit(output,split="/")
@@ -344,6 +384,9 @@ profRegr<-function(covNames, fixedEffectsNames, outcome="outcome", outcomeT=NA, 
 		}else if(yModel=='Binomial'){
 			nTrials<-dataMatrix[,ncol(dataMatrix)]
 			yMat<-cbind(yMat,nTrials)
+		}else if(yModel=='Survival'){
+			censoring<-dataMatrix[,ncol(dataMatrix)]
+			yMat<-cbind(yMat,censoring)
 		}
 		if(nFixedEffects>0){
 			wMat<-dataMatrix[,(2+nCovariates):(1+nCovariates+nFixedEffects)]
@@ -368,6 +411,8 @@ profRegr<-function(covNames, fixedEffectsNames, outcome="outcome", outcomeT=NA, 
 		"nSubjects"=nSubjects,
 		"nPredictSubjects"=nPreds,
 		"fullPredictFile"=fullPredictFile,
+		"alpha"=alpha,
+		"dPitmanYor"=dPitmanYor,
 		"covNames"=covNames,
 		"discreteCovs"=ifelse(xModel=="Mixed",discreteCovs,NA),
 		"continuousCovs"=ifelse(xModel=="Mixed",continuousCovs,NA),
@@ -513,8 +558,8 @@ calcOptimalClustering<-function(disSimObj,maxNClusters=NULL,useLS=F){
 					maxNClusters<-nNotEmpty
 				}
 			}   
-			# Add on another 5 just to make sure bound is safe (but don't let it exceed no. of subjects)
-			maxNClusters<-min(maxNClusters+5,nSubjects)
+			# Add on another 5 just to make sure bound is safe (but don't let it exceed no. of subjects -1)
+			maxNClusters<-min(maxNClusters+5,nSubjects-1)
 
 			close(nMembersFile)
 			close(nClustersFile)
@@ -705,7 +750,7 @@ calcAvgRiskAndProfile<-function(clusObj,includeFixedEffects=F){
 	}else{
 		riskArray<-NULL
 	}
-	
+
 	# Initialise the object for storing the profiles
 	if(xModel=='Discrete'){
 		phiArray<-array(dim=c(nSamples,nClusters,nCovariates,maxNCategories))
@@ -752,7 +797,7 @@ calcAvgRiskAndProfile<-function(clusObj,includeFixedEffects=F){
 		sigmaArray<-array(dim=c(nSamples,nClusters,nContinuousCovs,nContinuousCovs))
 	}
 	
-	
+
 	for(sweep in firstLine:lastLine){
 		if(sweep==firstLine){
 			skipVal<-firstLine-1
@@ -791,6 +836,7 @@ calcAvgRiskAndProfile<-function(clusObj,includeFixedEffects=F){
 				betaArray[sweep-firstLine+1,,]<-currBeta
 			}
 			# Calculate the average risk (over subjects) for each cluster
+
 			for(c in 1:nClusters){
 				currLambdaVector<-currTheta[currZ[optAlloc[[c]]],]
 				currLambda<-matrix(currLambdaVector,ncol=nCategoriesY)
@@ -814,12 +860,14 @@ calcAvgRiskAndProfile<-function(clusObj,includeFixedEffects=F){
 				}else if(yModel=="Categorical"){
 					currRisk<-matrix(0,ncol=length(optAlloc[[c]]),nrow=nCategoriesY)
 					currRisk<-exp(currLambda)/rowSums(exp(currLambda))
+				}else if(yModel=="Survival"){
+					currRisk<-exp(currLambda)
 				}
 				riskArray[sweep-firstLine+1,c,]<-apply(currRisk,2,mean)
 				thetaArray[sweep-firstLine+1,c,]<-apply(as.matrix(currTheta[currZ[optAlloc[[c]]],],ncol=nCategoriesY),2,mean)
 			}
 		}
-	
+
 		# Calculate the average profile (over subjects) for each cluster
 		if(xModel=='Discrete'){
 			currPhi<-scan(phiFile,what=double(),
@@ -955,7 +1003,7 @@ calcAvgRiskAndProfile<-function(clusObj,includeFixedEffects=F){
 			}
 		}
 	}
-	
+
 	# Calculate the empiricals
 	empiricals<-rep(0,nClusters)
 	if(!is.null(yModel)){
@@ -1717,7 +1765,7 @@ calcPredictions<-function(riskProfObj,predictResponseFileName=NULL, doRaoBlackwe
 	if(!is.null(predictResponseFileName)){
 		predictResponseData<-scan(predictResponseFileName,quiet=T)
 		predictResponseMat<-matrix(predictResponseData[2:length(predictResponseData)],
-		nrow=nPredictSubjects,byrow=T)
+			nrow=nPredictSubjects,byrow=T)
 		predictYMat<-matrix(predictResponseMat[,1],ncol=1)
 		if(yModel=="Poisson"||yModel=="Binomial"){
 			predictYMat<-cbind(predictYMat,predictResponseMat[,ncol(predictResponseMat)])
@@ -1928,7 +1976,8 @@ margModelPosterior<-function(runInfoObj,allocation){
 	nFilter=NULL
 	nSweeps=NULL
 	nProgress=NULL
-	
+	dPitmanYor=NULL
+	nCovariates=NULL
 
 	for (i in 1:length(runInfoObj)) assign(names(runInfoObj)[i],runInfoObj[[i]])
 
@@ -1943,11 +1992,17 @@ margModelPosterior<-function(runInfoObj,allocation){
 	# the subjects with missing values are simply removed for now
 	missingX<-FALSE
 	for (k in 1:nSubjects){
-		if (sum(xMat[k,]==-999)>0) {
+		if (nCovariates>1&&sum(xMat[k,]==-999)>0) {
+			missingX<-TRUE
+			stop("ERROR: No missing value handling technique has been implemented for the marginal model posterior. This function cannot be run if missing values are present.")
+		}
+		if (nCovariates==1&&sum(xMat[k]==-999)>0) {
 			missingX<-TRUE
 			stop("ERROR: No missing value handling technique has been implemented for the marginal model posterior. This function cannot be run if missing values are present.")
 		}
 	}
+	# this function only works for dPitmanYor == 0, ie only for Dirichlet process prior
+	if (runInfoObj$dPitmanYor !=0) stop("ERROR: the marginal model posterior has only been implemented for Dirichlet process priors.")
 
 	# read in value of hyperparameters
 	runData<-readLines(file.path(directoryPath,paste(fileStem,'_log.txt',sep='')))
@@ -2012,7 +2067,7 @@ margModelPosterior<-function(runInfoObj,allocation){
 		close(alphaFileName)
 		alpha<-median(alphaValues)
 	}
-	runInfoObj$alpha <- alpha
+	runInfoObj$alphaMPP <- alpha
 
 	if (xModel=="Discrete"){
 		aPhi<-runData[grep('aPhi',runData)]
@@ -2055,6 +2110,7 @@ margModelPosterior<-function(runInfoObj,allocation){
 		parFirstIter<-c(rep(0,nClusters))
 	}
 	# compute marginal model posterior
+
 	output<-.pZpXpY(zAlloc=zAllocCurrent, par=parFirstIter, clusterSizes=clusterSizes, nClusters=nClusters, runInfoObj=runInfoObj, alpha=alpha)
 	margModPost[1]<-output$margModPost
 	if (missing(allocation)){
@@ -2243,6 +2299,7 @@ margModelPosterior<-function(runInfoObj,allocation){
 	yMat=NULL
 	wMat=NULL
 	nSubjects=NULL
+	alphaMPP=NULL
 
 	for (i in 1:length(runInfoObj)) assign(names(runInfoObj)[i],runInfoObj[[i]])
 
@@ -2260,7 +2317,7 @@ margModelPosterior<-function(runInfoObj,allocation){
 	nPlus<-head(c(rev(cumsum(rev(clusterSizes[-1]))),0),-1)	
 
 	# computation of pX+pZ
-	pZpX<-.Call('pZpX',nClusters,nCategories,hyperParams$aPhi,clusterSizes,nCovariates, zAlloc, as.vector(as.matrix(xMat)), as.integer(nTableNames), alpha, nPlus, PACKAGE = 'PReMiuM')
+	pZpX<-.Call('pZpX',nClusters,nCategories,hyperParams$aPhi,clusterSizes,nCovariates, zAlloc, as.vector(as.matrix(xMat)), as.integer(nTableNames), alphaMPP, nPlus, PACKAGE = 'PReMiuM')
 
 	# computation of pY
 	if (includeResponse==T){
@@ -2301,7 +2358,7 @@ margModelPosterior<-function(runInfoObj,allocation){
 
 setHyperparams<-function(shapeAlpha=NULL,rateAlpha=NULL,useReciprocalNCatsPhi=NULL,aPhi=NULL,mu0=NULL,Tau0=NULL,R0=NULL,
 	kapp0=NULL,muTheta=NULL,sigmaTheta=NULL,dofTheta=NULL,muBeta=NULL,sigmaBeta=NULL,dofBeta=NULL,
-	shapeTauEpsilon=NULL,rateTauEpsilon=NULL,aRho=NULL,bRho=NULL,shapeSigmaSqY=NULL,scaleSigmaSqY=NULL,
+	shapeTauEpsilon=NULL,rateTauEpsilon=NULL,aRho=NULL,bRho=NULL,atomRho=NULL,shapeSigmaSqY=NULL,scaleSigmaSqY=NULL,
 	rSlice=NULL,truncationEps=NULL){
 	out<-list()
 	if (!is.null(shapeAlpha)){
@@ -2357,6 +2414,9 @@ setHyperparams<-function(shapeAlpha=NULL,rateAlpha=NULL,useReciprocalNCatsPhi=NU
 	}
 	if (!is.null(bRho)){
 		out$bRho<-bRho
+	}
+	if (!is.null(atomRho)){
+		out$atomRho<-atomRho
 	}
 	if (!is.null(shapeSigmaSqY)){
 		out$shapeSigmaSqY<-shapeSigmaSqY
@@ -2420,3 +2480,176 @@ computeRatioOfVariance<-function(runInfoObj){
 	return(ratioOfVariance)
 	
 }
+
+# Function to convert a vector to a symmetric matrix (upper triangle)
+vec2mat<-function (data = NA, nrow = 1) 
+{
+    nData <- length(data)
+
+    nElem <- round(nrow * (nrow + 1)/2)
+
+    result <- matrix(NA, nrow = nrow, ncol = nrow)
+
+    result[lower.tri(result, diag = FALSE)] <- data
+    result[upper.tri(result, diag = FALSE)] <- t(result)[upper.tri(result)]
+    diag(result)<-0
+
+    return(result)
+}
+
+# Function to plot a heatmap representing the dissimilarity matrix
+# Some re-ordering of the observations is happening automatically
+heatDissMat<-function(dissimObj,main=NULL,xlab=NULL,ylab=NULL)
+{
+
+	nSbj<-dissimObj$disSimRunInfoObj$nSubjects
+
+	col.labels<-c("0","0.5","1")
+	colours <- colorRampPalette(c("white","black"))(10)
+
+	dissMat<-vec2mat(dissimObj$disSimMat,nrow=nSbj)
+	heatmap(1-dissMat, keep.dendro=FALSE,symm=TRUE, Rowv=NA, labRow=FALSE, labCol=FALSE, margins=c(4.5,4.5), col= colours ,main = main, xlab=xlab, ylab=ylab)
+	color.legend(0.95,0.7,1,1,legend = col.labels, colours, gradient="y",align="rb")
+
+}
+
+# function to plot the trace of the global parameters 
+globalParsTrace<-function(runInfoObj, parameters = "nClusters",plotBurnIn=FALSE,whichBeta=1){
+
+	directoryPath=NULL
+	fileStem=NULL
+	nSweeps=NULL
+	nFilter=NULL
+	nSubjects=NULL
+	nBurn=NULL
+	reportBurnIn=NULL
+	alpha= NULL
+	
+	for (i in 1:length(runInfoObj)) assign(names(runInfoObj)[i],runInfoObj[[i]])
+
+	if (parameters=="mpp") {
+		parametersIn<-"margModPost"
+	} else {
+		parametersIn<-parameters
+	}
+
+	# Construct the parameter file name
+	parFileName <- file.path(directoryPath,paste(fileStem,"_",parametersIn,".txt",sep=""))
+
+	# read the data in
+	parData<-read.table(parFileName)
+print(parameters)
+	if(parameters== "nClusters") ylabPar<- "Number of clusters"
+	if(parameters=="mpp") ylabPar<-"Log marginal model posterior"
+	if(parameters=="beta") ylabPar<-"beta"
+	if(parameters=="alpha") {
+		if (alpha < -1) {
+			ylabPar<-"alpha"
+		} else {
+			stop("ERROR: Parameter alpha is random only for the Dirichlet process prior with random alpha.") 
+		}
+	}
+
+	xlabPars<-"Sweeps (after burn in)"
+
+
+	if(plotBurnIn==TRUE){
+		if (parameters=="mpp") stop("The mpp is only computed after the burn in. Set plotBurnIn=FALSE.")
+		if (reportBurnIn==TRUE) {
+
+			rangeSweeps<-1:((nBurn+nSweeps)/nFilter)
+			rangeParData<-1:(length(rangeSweeps)/nFilter)
+			xlabPars<-"Sweeps (including the burn in)"
+		} else {
+			stop("The function globalParsTrace cannot plot the burn in because the reportBurnIn option in profRegr was not set to TRUE and therefore the burn in has not been recorded.")
+		}
+	} else {
+		if (parameters=="mpp"){
+			firstLine<-ifelse(reportBurnIn,nBurn/nFilter+2,1)
+			lastLine<-(nSweeps+ifelse(reportBurnIn,nBurn+1,0))/nFilter
+			rangeSweeps<-firstLine:lastLine#(nBurn+1):(nBurn+nSweeps)
+			rangeParData<-1:(nSweeps)	
+		} else {
+			if (reportBurnIn==TRUE) {
+				firstLine<-ifelse(reportBurnIn,nBurn/nFilter+2,1)
+				lastLine<-(nSweeps+ifelse(reportBurnIn,nBurn+1,0))/nFilter
+				rangeSweeps<-firstLine:lastLine#(nBurn+1):(nBurn+nSweeps)
+				rangeParData<-rangeSweeps
+			} else {
+				firstLine<-ifelse(reportBurnIn,nBurn/nFilter+2,1)
+				lastLine<-(nSweeps+ifelse(reportBurnIn,nBurn+1,0))/nFilter
+				rangeSweeps<-(nBurn/nFilter+1):((nBurn+nSweeps)/nFilter)
+				rangeParData<-1:(nSweeps/nFilter)	
+
+			}
+		}
+	}
+
+	if (parameters=="alpha" || parameters=="nClusters"){
+		plot(rangeSweeps,parData[rangeParData,1],type="l",lty=1,col="red",ylab=ylabPar,xlab=xlabPars)
+	} else if (parameters=="mpp"){
+		plot(1:nSweeps,parData[,1],type="l",lty=1,col="red",ylab=ylabPar,xlab=xlabPars)
+	} else if (parameters=="beta"){
+		plot(rangeSweeps,parData[rangeParData,whichBeta],type="l",lty=1,col="red",ylab=ylabPar,xlab=xlabPars)
+	}
+
+}
+
+# plot posterior predictive densities
+plotPredictions<-function(outfile,runInfoObj,predictions,logOR=FALSE){
+
+	# ignores fixed effects
+	
+	nPredictedSubjects=NULL	
+	directoryPath=NULL
+	fileStem=NULL
+	yModel=NULL
+	xModel=NULL
+	logOddsRatio=NULL
+
+	for (i in 1:length(runInfoObj)) assign(names(runInfoObj)[i],runInfoObj[[i]])
+
+	if (yModel!="Bernoulli") stop("This function has been developed for Bernoulli response only.")
+	if (xModel=="Mixed") stop("This function has been developed for Discrete and Normal covariates only.")
+
+	if (runInfoObj$nFixedEffects>0) print("Note that fixed effects are not processed in this function.")
+	
+	predictResponseFileName = file.path(runInfoObj$directoryPath,paste(runInfoObj$fileStem,'_predict.txt',sep=''))
+	relScenarios<-read.table(predictResponseFileName,header=FALSE,skip=1)
+
+	# sistemare a seconda se logOR e' stato calcolato o no
+	if (logOR==FALSE) {
+		preds<-predictions$predictedYPerSweep[,,1]		
+	} else {
+		if (!is.null(predictions$logORPerSweep)){
+			preds<-predictions$logORPerSweep
+		} else {
+			stop("Log OR (odds ratios) cannot be plotted because they have not been computed by calcPredictions. Re-run calcPredictions with option fullSweepLogOR=TRUE.")
+		}
+	}
+	
+	# output file
+	pdf(outfile,onefile=TRUE)
+   
+	# Relevant scenarios
+	nPredictSubjects<-runInfoObj$nPredictSubjects
+	
+	denObj<-vector(mode="list")
+	for(i in 1:nPredictSubjects){
+		denObj[[i]]<-density(na.omit(preds[,i]),bw=0.8)
+	}
+	
+	for(k in 1:nPredictSubjects){
+		plotDF<-data.frame('logOddsRatio'=denObj[[k]]$x,'density'=denObj[[k]]$y)
+		plotObj<-ggplot(plotDF)
+		plotObj<-plotObj+geom_line(aes(x=logOddsRatio,y=density),size=0.2)
+		plotObj<-plotObj+theme(legend.position="none")
+		plotObj<-plotObj+labs(x=ifelse(logOR==TRUE,"Log OR of response","Response"))+theme(axis.title.x=element_text(size=7))+labs(y="Density")+theme(axis.title.y=element_text(size=7,angle=90))							
+		plotObj<-plotObj+theme(axis.text.x=element_text(size=7))+theme(axis.text.y=element_text(size=7))
+		print(plotObj)
+	}
+	
+	dev.off()
+
+}
+

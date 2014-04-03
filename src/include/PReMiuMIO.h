@@ -98,10 +98,11 @@ pReMiuMOptions processCommandLine(string inputStr){
 			Rprintf("--nFilter=<unsigned int>\n\tThe frequency (in sweeps) with which to write\n\tthe output to file (1)\n");
 			Rprintf("--nClusInit=<unsigned int>\n\tThe number of clusters individuals should be\n\tinitially randomly assigned to (Unif[50,60])\n");
 			Rprintf("--seed=<unsigned int>\n\tThe value for the seed for the random number\n\tgenerator (current time)\n");
-			Rprintf("--yModel=<string>\n\tThe model type for the outcome variable. Options are\n\tcurrently 'Bernoulli','Poisson','Binomial', 'Categorical' and 'Normal' (Bernoulli)\n");
+			Rprintf("--yModel=<string>\n\tThe model type for the outcome variable. Options are\n\tcurrently 'Bernoulli','Poisson','Binomial', 'Categorical', 'Survival' and 'Normal' (Bernoulli)\n");
 			Rprintf("--xModel=<string>\n\tThe model type for the covariates. Options are\n\tcurrently 'Discrete', 'Normal' and 'Mixed' (Discrete)\n");
 			Rprintf("--sampler=<string>\n\tThe sampler type to be used. Options are\n\tcurrently 'SliceDependent', 'SliceIndependent' and 'Truncated' (SliceDependent)\n");
-			Rprintf("--alpha=<double>\n\tThe value to be used if alpha is to remain fixed.\n\tIf a negative value is used then alpha is updated (-1)\n");
+			Rprintf("--alpha=<double>\n\tThe value to be used if alpha is to remain fixed.\n\tIf a negative value is used then alpha is updated (-2)\n");
+			Rprintf("--dPitmanYor=<double>\n\tThe value to be used for the discount parameter of the Pitman-Yor process prior.\n\tThe default corresponds to the Dirichlet process prior (0)\n");
 			Rprintf("--excludeY\n\tIf included only the covariate data X is modelled (not included)\n");
 			Rprintf("--extraYVar\n\tIf included extra Gaussian variance is included in the\n\tresponse model (not included).\n");
 			Rprintf("--varSelect=<string>\n\tThe type of variable selection to be used 'None',\n\t'BinaryCluster' or 'Continuous' (None)\n");
@@ -161,7 +162,7 @@ pReMiuMOptions processCommandLine(string inputStr){
 					size_t pos = inString.find("=")+1;
 					string outcomeType = inString.substr(pos,inString.size()-pos);
 					if(outcomeType.compare("Poisson")!=0&&outcomeType.compare("Bernoulli")!=0&&
-							outcomeType.compare("Categorical")!=0&&
+							outcomeType.compare("Categorical")!=0&&outcomeType.compare("Survival")!=0&&
 							outcomeType.compare("Binomial")!=0&&outcomeType.compare("Normal")!=0){
 						// Illegal outcome model entered
 						wasError=true;
@@ -170,6 +171,10 @@ pReMiuMOptions processCommandLine(string inputStr){
 					options.outcomeType(outcomeType);
 					if(outcomeType.compare("Normal")==0&&options.responseExtraVar()){
 						Rprintf("Response extra variation not permitted with Normal response\n");			
+						options.responseExtraVar(false);
+					}
+					if(outcomeType.compare("Survival")==0&&options.responseExtraVar()){
+						Rprintf("Response extra variation not permitted with Survival response\n");			
 						options.responseExtraVar(false);
 					}
 				}else if(inString.find("--xModel")!=string::npos){
@@ -205,6 +210,11 @@ pReMiuMOptions processCommandLine(string inputStr){
 					string tmpStr = inString.substr(pos,inString.size()-pos);
 					double alpha=(double)atof(tmpStr.c_str());
 					options.fixedAlpha(alpha);
+				}else if(inString.find("--dPitmanYor")!=string::npos){
+					size_t pos = inString.find("=")+1;
+					string tmpStr = inString.substr(pos,inString.size()-pos);
+					double dPitmanYor=(double)atof(tmpStr.c_str());
+					options.dPitmanYor(dPitmanYor);
 				}else if(inString.find("--excludeY")!=string::npos){
 					options.includeResponse(false);
 				}else if(inString.find("--extraYVar")!=string::npos){
@@ -213,6 +223,7 @@ pReMiuMOptions processCommandLine(string inputStr){
 					}else{
 						Rprintf("Response extra variation not permitted with Normal response\n");
 					}
+					if(options.outcomeType().compare("Survival")==0) Rprintf("Response extra variation not permitted with Survival response\n");
 				}else if(inString.find("--varSelect")!=string::npos){
 					size_t pos = inString.find("=")+1;
 					string varSelectType = inString.substr(pos,inString.size()-pos);
@@ -286,6 +297,7 @@ void importPReMiuMData(const string& fitFilename,const string& predictFilename,p
 	string covariateType = dataset.covariateType();
 	vector<double>& logOffset=dataset.logOffset();
 	vector<unsigned int>& nTrials=dataset.nTrials();
+	vector<unsigned int>& censoring=dataset.censoring();
 
 	bool wasError=false;
 
@@ -364,12 +376,15 @@ void importPReMiuMData(const string& fitFilename,const string& predictFilename,p
 	if(outcomeType.compare("Binomial")==0){
 		nTrials.resize(nSubjects);
 	}
+	if(outcomeType.compare("Survival")==0){
+		censoring.resize(nSubjects);
+	}
 	missingX.resize(nSubjects+nPredictSubjects);
 	nContinuousCovariatesNotMissing.resize(nSubjects+nPredictSubjects);
 	vector<double> meanX(nCovariates,0);
 	vector<unsigned int> nXNotMissing(nCovariates,0);
 	for(unsigned int i=0;i<nSubjects;i++){
-		if(outcomeType.compare("Normal")==0){
+		if(outcomeType.compare("Normal")==0||outcomeType.compare("Survival")==0){
 			inputFile >> continuousY[i];
 		}else{
 			inputFile >> discreteY[i];
@@ -432,6 +447,9 @@ void importPReMiuMData(const string& fitFilename,const string& predictFilename,p
 		if(outcomeType.compare("Binomial")==0){
 			inputFile >> nTrials[i];
 		}
+		if(outcomeType.compare("Survival")==0){
+			inputFile >> censoring[i];
+		}
 	}
 
 	for(unsigned int i=nSubjects;i<nSubjects+nPredictSubjects;i++){
@@ -492,7 +510,7 @@ void importPReMiuMData(const string& fitFilename,const string& predictFilename,p
 					if (j < nDiscreteCovs) {
 						discreteX[i][j]=(int)meanX[j];
 					} else {
-						continuousX[i][j]=meanX[j-nDiscreteCovs];
+						continuousX[i][j-nDiscreteCovs]=(double)meanX[j-nDiscreteCovs];
 					}
 				}
 			}
@@ -525,6 +543,8 @@ void readHyperParamsFromFile(const string& filename,pReMiuMHyperParams& hyperPar
 	}
 
 	string inString;
+
+	bool wasError=false;
 
 	while(!inputFile.eof()){
 		getline(inputFile,inString);
@@ -687,6 +707,16 @@ void readHyperParamsFromFile(const string& filename,pReMiuMHyperParams& hyperPar
 			string tmpStr = inString.substr(pos,inString.size()-pos);
 			double bRho = (double)atof(tmpStr.c_str());
 			hyperParams.bRho(bRho);
+		}else if(inString.find("atomRho")==0){
+			size_t pos = inString.find("=")+1;
+			string tmpStr = inString.substr(pos,inString.size()-pos);
+			double atomRho = (double)atof(tmpStr.c_str());
+			hyperParams.atomRho(atomRho);
+			if(hyperParams.atomRho()<=0 || hyperParams.atomRho()>1){
+				// Illegal atomRho value entered - it must be in (0,1] where 1 corresponds to the non-sparsity inducing var selection
+				wasError=true;
+				break;
+			}
 		}else if(inString.find("shapeSigmaSqY")==0){
 			size_t pos = inString.find("=")+1;
 			string tmpStr = inString.substr(pos,inString.size()-pos);
@@ -708,6 +738,16 @@ void readHyperParamsFromFile(const string& filename,pReMiuMHyperParams& hyperPar
 			double truncationEps = (double)atof(tmpStr.c_str());
 			hyperParams.truncationEps(truncationEps);
 		}
+	}
+
+	// Return if there was an error
+	if(wasError){
+		Rprintf("There is a mistake in the arguments provided in profRegr.\n");
+		Rprintf("The code will be run with default values.\n");
+	//	Rprintf("Please use:\n");
+	//	Rprintf("\t profileRegression --help\n");
+	//	Rprintf("to get help on correct usage.\n");
+	//	exit(-1);
 	}
 }
 
@@ -770,7 +810,7 @@ void initialisePReMiuM(baseGeneratorType& rndGenerator,
 		}
 		// Now compute the bound recommended in Ishwaran and James 2001
 		double multiplier=0.0;
-		if(options.fixedAlpha()>0){
+		if(options.fixedAlpha()>-1){
 			multiplier=options.fixedAlpha();
 		}else{
 			// Use the expected value of alpha as the multiplier
@@ -791,10 +831,13 @@ void initialisePReMiuM(baseGeneratorType& rndGenerator,
 	randomGamma gammaRand(hyperParams.shapeAlpha(),1.0/hyperParams.rateAlpha());
 
 	double alpha=gammaRand(rndGenerator);
-	if(options.fixedAlpha()>0){
+	if(options.fixedAlpha()>-1){
 		alpha=options.fixedAlpha();
 	}
-	params.alpha(alpha);
+	params.alpha(alpha);	
+
+	double dPitmanYor = options.dPitmanYor();
+	params.dPitmanYor(dPitmanYor);	
 
 	vector<unsigned int> nXInCluster(maxNClusters,0);
 	unsigned int maxZ=0;
@@ -812,7 +855,6 @@ void initialisePReMiuM(baseGeneratorType& rndGenerator,
 
 		}
 	}
-
 	params.workNXInCluster(nXInCluster);
 	params.workMaxZi(maxZ);
 
@@ -829,8 +871,9 @@ void initialisePReMiuM(baseGeneratorType& rndGenerator,
 	}
 
 	double tmp=0.0;
+
 	for(unsigned int c=0;c<=maxZ;c++){
-		double vVal = betaRand(rndGenerator,1.0+params.workNXInCluster(c),alpha+sumCPlus1ToMaxMembers[c]);
+		double vVal = betaRand(rndGenerator,1.0+params.workNXInCluster(c)-dPitmanYor,alpha+sumCPlus1ToMaxMembers[c]+dPitmanYor*(c+1));
 		params.v(c,vVal);
 		// Set logPsi
 		params.logPsi(c,tmp+log(vVal));
@@ -843,7 +886,7 @@ void initialisePReMiuM(baseGeneratorType& rndGenerator,
 		vector<double> logPsiNew=params.logPsi();
 
 		for(unsigned int c=maxZ+1;c<maxNClusters;c++){
-			double v=betaRand(rndGenerator,1.0,alpha);
+			double v=betaRand(rndGenerator,1.0-dPitmanYor,alpha+dPitmanYor*c);
 			double logPsi=log(v)+log(1-vNew[c-1])-log(vNew[c-1])+logPsiNew[c-1];
 			if(c>=vNew.size()){
 				vNew.push_back(v);
@@ -903,7 +946,7 @@ void initialisePReMiuM(baseGeneratorType& rndGenerator,
 			}else{
 				c++;
 				// We need a new sampled value of v
-				double v=betaRand(rndGenerator,1.0,alpha);
+				double v=betaRand(rndGenerator,1.0-dPitmanYor,alpha+dPitmanYor*c);
 				double logPsi=log(v)+log(1-vNew[c-1])-log(vNew[c-1])+logPsiNew[c-1];
 				if(c>=vNew.size()){
 					vNew.push_back(v);
@@ -1211,7 +1254,7 @@ void initialisePReMiuM(baseGeneratorType& rndGenerator,
 		vector<unsigned int> omega(nCovariates);
 		vector<double> rho(nCovariates);
 		for(unsigned int j=0;j<nCovariates;j++){
-			if(unifRand(rndGenerator)<0.01){
+			if((unifRand(rndGenerator)<0.01) && (hyperParams.atomRho()!=1)){
 				// We are in the point mass at 0 case - variable is switched off
 				omega[j]=0;
 				rho[j]=0;
@@ -1332,6 +1375,7 @@ void writePReMiuMOutput(mcmcSampler<pReMiuMParams,pReMiuMOptions,pReMiuMPropPara
 		bool includeResponse = sampler.model().options().includeResponse();
 		bool responseExtraVar = sampler.model().options().responseExtraVar();
 		double fixedAlpha = sampler.model().options().fixedAlpha();
+		double dPitmanYor = sampler.model().options().dPitmanYor();
 		string outcomeType = sampler.model().options().outcomeType();
 		bool computeEntropy = sampler.model().options().computeEntropy();
 		unsigned int nFixedEffects = params.nFixedEffects(outcomeType);
@@ -1378,7 +1422,7 @@ void writePReMiuMOutput(mcmcSampler<pReMiuMParams,pReMiuMOptions,pReMiuMPropPara
 			outFiles.push_back(new ofstream(fileName.c_str()));
 			fileName = fileStem + "_nMembers.txt";
 			outFiles.push_back(new ofstream(fileName.c_str()));
-			if(fixedAlpha<0){
+			if(fixedAlpha<=-1){
 				fileName = fileStem + "_alphaProp.txt";
 				outFiles.push_back(new ofstream(fileName.c_str()));
 			}
@@ -1460,7 +1504,7 @@ void writePReMiuMOutput(mcmcSampler<pReMiuMParams,pReMiuMOptions,pReMiuMPropPara
 		alphaInd=r++;
 		logPostInd=r++;
 		nMembersInd=r++;
-		if(fixedAlpha<0){
+		if(fixedAlpha<=-1){
 			alphaPropInd=r++;
 		}
 
@@ -1710,7 +1754,7 @@ void writePReMiuMOutput(mcmcSampler<pReMiuMParams,pReMiuMOptions,pReMiuMPropPara
 		}
 
 		// Print alpha
-		if(fixedAlpha<0||sweep==0){
+		if(fixedAlpha<=-1||sweep==0){
 			*(outFiles[alphaInd]) << params.alpha() << endl;
 		}
 
@@ -1773,7 +1817,7 @@ void writePReMiuMOutput(mcmcSampler<pReMiuMParams,pReMiuMOptions,pReMiuMPropPara
 		}
 
 		// Print the acceptance rates for alpha
-		if(fixedAlpha<0){
+		if(fixedAlpha<=-1){
 			anyUpdates = proposalParams.alphaAnyUpdates();
 			if(anyUpdates){
 				*(outFiles[alphaPropInd]) << sampler.proposalParams().alphaAcceptRate() <<
@@ -1895,7 +1939,7 @@ string storeLogFileData(const pReMiuMOptions& options,
 	}
 	tmpStr << "Number of initial clusters: " << nClusInit;
 	if(options.nClusInit()==0){
-		tmpStr << " (Random, Unif[5,15])" << endl;
+		tmpStr << " (Random, Unif[50,60])" << endl;
 	}else{
 		tmpStr << endl;
 	}
@@ -1937,11 +1981,16 @@ string storeLogFileData(const pReMiuMOptions& options,
 	}else{
 		tmpStr << "Include response: False" << endl;
 	}
-	if(options.fixedAlpha()<0){
+	if(options.fixedAlpha()<=-1){
 		tmpStr << "Update alpha: True" << endl;
 	}else{
 		tmpStr << "Update alpha: False" << endl;
 		tmpStr << "Fixed alpha: " << options.fixedAlpha() << endl;
+		if(options.dPitmanYor()==0) {
+			tmpStr << "Dirichlet process prior, so dPitmanYor: " << options.dPitmanYor() << endl;
+		} else {
+			tmpStr << "dPitmanYor: " << options.dPitmanYor() << endl;
+		}
 	}
 	if(options.computeEntropy()){
 		tmpStr << "Compute allocation entropy: True" << endl;
@@ -1953,7 +2002,7 @@ string storeLogFileData(const pReMiuMOptions& options,
 	tmpStr << "Variable selection: " << options.varSelectType() << endl;
 
 	tmpStr << endl << "Hyperparameters:" << endl;
-	if(options.fixedAlpha()<0){
+	if(options.fixedAlpha()<=-1){
 		tmpStr << "shapeAlpha: " << hyperParams.shapeAlpha() << endl;
 		tmpStr << "rateAlpha: " << hyperParams.rateAlpha() << endl;
 	}
@@ -2004,7 +2053,8 @@ string storeLogFileData(const pReMiuMOptions& options,
 
 	if(options.varSelectType().compare("None")!=0){
 		tmpStr << "aRho: " << hyperParams.aRho() << endl;
-		tmpStr << "bRho: " << hyperParams.aRho() << endl;
+		tmpStr << "bRho: " << hyperParams.bRho() << endl;
+		tmpStr << "atomRho: " << hyperParams.atomRho() << endl;
 	}
 
 	if(dataset.outcomeType().compare("Normal")==0){

@@ -1,3 +1,12 @@
+Changes in version 3.0.22 (2014-04-01)
+
+* Added parameter for Bernoulli for sparsity inducing prior in variable selection
+* Added function for plotting heatmap of dissimilarity matrix
+* Added function to plot trace of mcmc for some global parameters 
+* Added first Weibull model for survival response
+* Added Pitman-Yor process prior (two parameter prior)
+
+--------------------------------------------
 Changes in version 3.0.16 (2013-03-15)
 
 * Added ChangeLog
