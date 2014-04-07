@@ -122,7 +122,6 @@ class pReMiuMHyperParams{
 
 			if(options.covariateType().compare("Discrete")==0 || options.covariateType().compare("Mixed")==0 ){
 				// For Phi
-				_useReciprocalNCatsPhi=false;
 				for(unsigned int j=0;j<_aPhi.size();j++){
 					_aPhi[j]=1.0;
 				}
@@ -223,14 +222,6 @@ class pReMiuMHyperParams{
 
 		void rateAlpha(const double& r){
 			_rateAlpha = r;
-		}
-
-		bool useReciprocalNCatsPhi() const{
-			return _useReciprocalNCatsPhi;
-		}
-
-		void useReciprocalNCatsPhi(const bool& useRecip){
-			_useReciprocalNCatsPhi = useRecip;
 		}
 
 		vector<double> aPhi() const{
@@ -437,7 +428,6 @@ class pReMiuMHyperParams{
 		pReMiuMHyperParams& operator=(const pReMiuMHyperParams& hyperParams){
 			_shapeAlpha = hyperParams.shapeAlpha();
 			_rateAlpha = hyperParams.rateAlpha();
-			_useReciprocalNCatsPhi = hyperParams.useReciprocalNCatsPhi();
 			_aPhi = hyperParams.aPhi();
 			_mu0 = hyperParams.mu0();
 			_Tau0 = hyperParams.Tau0();
@@ -474,7 +464,6 @@ class pReMiuMHyperParams{
 
 		// Hyper parameters for prior for Phi_j (discrete categorical covariates)
 		// Prior is Phi_j ~ Dirichlet(a,a,...,a)
-		bool _useReciprocalNCatsPhi;
 		vector<double> _aPhi;
 
 		// Hyper parameters for prior for mu (for Normal covariates)
@@ -2057,12 +2046,12 @@ double logPYiGivenZiWiSurvival(const pReMiuMParams& params, const pReMiuMData& d
 						const unsigned int& nFixedEffects,const int& zi,
 						const unsigned int& i){
 
-	double lambda = 0.0;
+	double lambda = params.theta(zi,0);
 	for(unsigned int j=0;j<nFixedEffects;j++){
 		lambda+=params.beta(j,0)*dataset.W(i,j);
 	}
-	lambda=exp(params.theta(zi,0)+lambda);
-	return logPdfWeibullCensored(dataset.continuousY(i), lambda, 5, dataset.censoring(i));
+//	return logPdfNormal(dataset.continuousY(i),exp(lambda),10);
+	return logPdfWeibullCensored(dataset.continuousY(i), 5.0, exp(lambda), dataset.censoring(i));
 }
 
 
