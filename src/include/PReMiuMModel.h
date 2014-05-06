@@ -2050,7 +2050,6 @@ double logPYiGivenZiWiSurvival(const pReMiuMParams& params, const pReMiuMData& d
 	for(unsigned int j=0;j<nFixedEffects;j++){
 		lambda+=params.beta(j,0)*dataset.W(i,j);
 	}
-//	return logPdfNormal(dataset.continuousY(i),exp(lambda),10);
 	return logPdfWeibullCensored(dataset.continuousY(i), 5.0, exp(lambda), dataset.censoring(i));
 }
 
