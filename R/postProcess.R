@@ -1,4 +1,4 @@
-# (C) Copyright David Hastie and Silvia Liverani, 2012.
+# (C) Copyright David Hastie, Silvia Liverani and Aurore J. Lavigne, 2012-2014.
 
 # PReMiuM++ is free software; you can redistribute it and/or modify it under the
 # terms of the GNU Lesser General Public License as published by the Free Software
@@ -23,7 +23,7 @@
 
 is.wholenumber <- function(x, tol = .Machine$double.eps^0.5)  abs(x - round(x)) < tol
 
-profRegr<-function(covNames, fixedEffectsNames, outcome="outcome", outcomeT=NA, data, output="output", hyper, predict, nSweeps=1000, nBurn=1000, nProgress=500, nFilter=1, nClusInit, seed, yModel="Bernoulli", xModel="Discrete", sampler="SliceDependent", alpha=-2, dPitmanYor=0, excludeY=FALSE, extraYVar=FALSE, varSelectType="None", entropy,reportBurnIn=FALSE, run=TRUE, discreteCovs, continuousCovs, whichLabelSwitch="123"){
+profRegr<-function(covNames, fixedEffectsNames, outcome="outcome", outcomeT=NA, data, output="output", hyper, predict, nSweeps=1000, nBurn=1000, nProgress=500, nFilter=1, nClusInit, seed, yModel="Bernoulli", xModel="Discrete", sampler="SliceDependent", alpha=-2, dPitmanYor=0, excludeY=FALSE, extraYVar=FALSE, varSelectType="None", entropy,reportBurnIn=FALSE, run=TRUE, discreteCovs, continuousCovs, whichLabelSwitch="123", includeCAR=FALSE, neighboursFile="Neighbours.txt"){
 
 	# suppress scientific notation
 	options(scipen=999)
@@ -38,6 +38,8 @@ profRegr<-function(covNames, fixedEffectsNames, outcome="outcome", outcomeT=NA, 
 	if (!is.data.frame(data)) stop("Input data must be a data.frame with outcome, covariates and fixed effect names as column names.")
 
 	if (extraYVar==TRUE&(yModel=="Categorical"||yModel=="Normal"||yModel=="Survival")) stop("Option extraYVar is only available for Bernoulli, Binomial and Poisson response.")
+
+	if (includeCAR==TRUE&(yModel=="Categorical"||yModel=="Normal"||yModel=="Survival"||yModel=="Bernoulli"||yModel=="Binomial")) stop("Option includeCAR is only available for Poisson response.")
 
 	# open file to write output
 	fileName<-paste(output,"_input.txt",sep="")
@@ -190,6 +192,7 @@ profRegr<-function(covNames, fixedEffectsNames, outcome="outcome", outcomeT=NA, 
 	}
 
 	# write prediction file
+	if (!missing(predict)&(includeCAR)) stop ("Predictions are not available with spatial effect.")
 	if (!missing(predict)) {
 		nPreds<-dim(predict)[1]
 		write(nPreds, paste(output,"_predict.txt",sep=""),ncolumns=1)
@@ -256,6 +259,9 @@ profRegr<-function(covNames, fixedEffectsNames, outcome="outcome", outcomeT=NA, 
 	if (dPitmanYor>0&sampler!="Truncated") stop("The Pitman-Yor process prior has been implemented to use with the Truncated sampler only.")
 	#if (dPitmanYor>0&sampler=="Truncated") print("Note that for the Pitman-Yor process prior there might be en error when using the Truncated sampler. This is due to the way that the bound on the number of clusters is computed.")
 
+	#check entries for spatial CAR term
+	if (includeCAR&file.exists(neighboursFile)==FALSE) stop("You must enter a valid file for neighbourhood structure.") 
+ 
 	inputString<-paste("PReMiuM --input=",fileName," --output=",output," --xModel=",xModel," --yModel=",yModel," --varSelect=",varSelectType," --whichLabelSwitch=",whichLabelSwitch,sep="")
 
 	# create hyperparameters file
@@ -280,8 +286,8 @@ profRegr<-function(covNames, fixedEffectsNames, outcome="outcome", outcomeT=NA, 
 		if (!is.null(hyper$R0)){
 			write(paste("R0=",paste(t(hyper$R0),collapse=" ")," ",sep=""),hyperFile,append=T)
 		}
-		if (!is.null(hyper$kapp0)){
-			write(paste("kapp0=",hyper$kapp0,sep=""),hyperFile,append=T)
+		if (!is.null(hyper$kappa0)){
+			write(paste("kappa0=",hyper$kappa0,sep=""),hyperFile,append=T)
 		}
 		if (!is.null(hyper$muTheta)){
 			write(paste("muTheta=",hyper$muTheta,sep=""),hyperFile,append=T)
@@ -329,6 +335,12 @@ profRegr<-function(covNames, fixedEffectsNames, outcome="outcome", outcomeT=NA, 
 		if (!is.null(hyper$truncationEps)){
 			write(paste("truncationEps=",hyper$truncationEps,sep=""),hyperFile,append=T)
 		}
+		if (!is.null(hyper$shapeTauCAR)){
+		  write(paste("shapeTauCAR=",hyper$shapeTauCAR,sep=""),hyperFile,append=T)
+		}
+		if (!is.null(hyper$rateTauCAR)){
+		  write(paste("rateTauCAR=",hyper$rateTauCAR,sep=""),hyperFile,append=T)
+		}
 	}
 
 	if (reportBurnIn) inputString<-paste(inputString," --reportBurnIn",sep="")
@@ -346,6 +358,7 @@ profRegr<-function(covNames, fixedEffectsNames, outcome="outcome", outcomeT=NA, 
 	if (excludeY) inputString<-paste(inputString," --excludeY",sep="")
 	if (extraYVar) inputString<-paste(inputString," --extraYVar",sep="")
 	if (!missing(entropy)) inputString<-paste(inputString," --entropy",sep="")
+	if (includeCAR) inputString<-paste(inputString," --includeCAR", " --neighbours=", neighboursFile ,sep="")
 
 	if (run) .Call('profRegr', inputString, PACKAGE = 'PReMiuM')
 
@@ -427,6 +440,7 @@ profRegr<-function(covNames, fixedEffectsNames, outcome="outcome", outcomeT=NA, 
 		"nCategoriesY"=yLevels,
 		"nCategories"=xLevels,
 		"extraYVar"=extraYVar,
+		"includeCAR"=includeCAR,
 		"xMat"=xMat,"yMat"=yMat,"wMat"=wMat))
 }
 
@@ -850,7 +864,7 @@ calcAvgRiskAndProfile<-function(clusObj,includeFixedEffects=F){
 					}
 				}
 				if(yModel=="Poisson"){
-					currRisk<-exp(currLambda)
+					currRisk<-exp(currLambda )
 				}else if(yModel=="Bernoulli"||yModel=="Binomial"){
 					currRisk<-1.0/(1.0+exp(-currLambda))
 				}else if(yModel=="Normal"){
@@ -1150,34 +1164,45 @@ plotRiskProfile<-function(riskProfObj,outFile,showRelativeRisk=F,orderBy=NULL,wh
 	}
 
 	png(outFile,width=1200,height=800)
+	orderProvided<-F
 	
 	if(!is.null(orderBy)){
 		if(!includeResponse){
 			if(orderBy!='Empirical'&&orderBy!='ClusterSize'&&!orderBy%in%covNames){
+				if(is.numeric(orderBy)){
+					if(length(orderBy)==nClusters){
+						orderProvided<-T
+						meanSortIndex<-orderBy
+					}else{
+						cat("Order vector provided not of same length as number of clusters. Reverting to default ordering.\n")	
+						orderBy<-NULL
+					}
 				orderBy<-NULL
+				}
+				#orderBy<-NULL
 			}
 		}else{
 			if(orderBy!='Risk'&&orderBy!='Empirical'&&orderBy!='ClusterSize'&&!orderBy%in%covNames){
+				if(is.numeric(orderBy)){
+					if(length(orderBy)==nClusters){
+						orderProvided<-T
+						meanSortIndex<-orderBy
+					}else{
+						cat("Order vector provided not of same length as number of clusters. Reverting to default ordering.\n")	
+						orderBy<-NULL
+					}
 				orderBy<-NULL
+				}
+				#orderBy<-NULL
 			}
 		}
+
 	}
 	
 	# Set up the layout for the plot
 	plotLayout<-grid.layout(ncol = nCovariates+2, nrow = 6)
 	grid.newpage()
 	pushViewport(viewport(layout = plotLayout))
-	
-	orderProvided<-F
-	if(is.numeric(orderBy)){
-		if(length(orderBy)==nClusters){
-			orderProvided<-T
-			meanSortIndex<-orderBy
-		}else{
-			cat("Order vector provided not of same length as number of clusters. Reverting to default ordering.\n")
-			orderBy<-NULL
-		}
-	}
 
 	if(!orderProvided){
 		if(!is.null(risk)){
@@ -1227,7 +1252,7 @@ plotRiskProfile<-function(riskProfObj,outFile,showRelativeRisk=F,orderBy=NULL,wh
 						# and then uses an expected value
 						tmpMat<-profile[,,whichCov,1]
 						if(nCategories[whichCov]>1){
-							for(k in 2:nCategories[whicCov]){
+							for(k in 2:(nCategories[whichCov])){
 								tmpMat<-tmpMat+k*profile[,,whichCov,k]
 							}
 						}
@@ -1765,7 +1790,7 @@ calcPredictions<-function(riskProfObj,predictResponseFileName=NULL, doRaoBlackwe
 		predictResponseMat<-matrix(predictResponseData[2:length(predictResponseData)],
 			nrow=nPredictSubjects,byrow=T)
 		predictYMat<-matrix(predictResponseMat[,1],ncol=1)
-		if(yModel=="Poisson"||yModel=="Binomial"){
+		if(yModel=="Poisson"||yModel=="Binomial"||yModel=="Survival"){
 			predictYMat<-cbind(predictYMat,predictResponseMat[,ncol(predictResponseMat)])
 			if(all(predictYMat[,2]>-999)){
 				extraInfoProvided<-T
@@ -1889,7 +1914,7 @@ calcPredictions<-function(riskProfObj,predictResponseFileName=NULL, doRaoBlackwe
 		}else if(yModel=='Normal'){
 			predictedY[sweep,,]<-lambda
 		}else if(yModel=='Survival'){
-			predictedY[sweep,,]<-lambda
+			predictedY[sweep,,]<-exp(lambda)
 		}else if(yModel=="Categorical"){
 			predictedY[sweep,,]<-exp(lambda)/rowSums(exp(lambda))
 		}
@@ -2357,9 +2382,9 @@ margModelPosterior<-function(runInfoObj,allocation){
 }
 
 setHyperparams<-function(shapeAlpha=NULL,rateAlpha=NULL,aPhi=NULL,mu0=NULL,Tau0=NULL,R0=NULL,
-	kapp0=NULL,muTheta=NULL,sigmaTheta=NULL,dofTheta=NULL,muBeta=NULL,sigmaBeta=NULL,dofBeta=NULL,
+	kappa0=NULL,muTheta=NULL,sigmaTheta=NULL,dofTheta=NULL,muBeta=NULL,sigmaBeta=NULL,dofBeta=NULL,
 	shapeTauEpsilon=NULL,rateTauEpsilon=NULL,aRho=NULL,bRho=NULL,atomRho=NULL,shapeSigmaSqY=NULL,scaleSigmaSqY=NULL,
-	rSlice=NULL,truncationEps=NULL){
+	rSlice=NULL,truncationEps=NULL,shapeTauCAR=NULL,rateTauCAR=NULL){
 	out<-list()
 	if (!is.null(shapeAlpha)){
 		out$shapeAlpha<-shapeAlpha
@@ -2379,8 +2404,8 @@ setHyperparams<-function(shapeAlpha=NULL,rateAlpha=NULL,aPhi=NULL,mu0=NULL,Tau0=
 	if (!is.null(R0)){
 		out$R0<-R0
 	}
-	if (!is.null(kapp0)){
-		out$kapp0<-kapp0
+	if (!is.null(kappa0)){
+		out$kappa0<-kappa0
 	}
 	if (!is.null(muTheta)){
 		out$muTheta<-muTheta
@@ -2426,6 +2451,12 @@ setHyperparams<-function(shapeAlpha=NULL,rateAlpha=NULL,aPhi=NULL,mu0=NULL,Tau0=
 	}
 	if (!is.null(truncationEps)){
 		out$truncationEps<-truncationEps
+	}
+	if (!is.null(shapeTauCAR)){
+	  out$shapeTauCAR<-shapeTauCAR
+	}
+	if (!is.null(rateTauCAR)){
+	  out$rateTauCAR<-rateTauCAR
 	}
 	return(out)
 }
@@ -2535,7 +2566,7 @@ globalParsTrace<-function(runInfoObj, parameters = "nClusters",plotBurnIn=FALSE,
 
 	# read the data in
 	parData<-read.table(parFileName)
-print(parameters)
+
 	if(parameters== "nClusters") ylabPar<- "Number of clusters"
 	if(parameters=="mpp") ylabPar<-"Log marginal model posterior"
 	if(parameters=="beta") ylabPar<-"beta"
@@ -2583,11 +2614,11 @@ print(parameters)
 	}
 
 	if (parameters=="alpha" || parameters=="nClusters"){
-		plot(rangeSweeps,parData[rangeParData,1],type="l",lty=1,col="red",ylab=ylabPar,xlab=xlabPars)
+		plot(rangeSweeps,parData[rangeParData,1],type="l",lty=1,col="red",ylab=ylabPar,xlab=xlabPars,cex.axis=1.5,cex.lab=1.5)
 	} else if (parameters=="mpp"){
-		plot(1:nSweeps,parData[,1],type="l",lty=1,col="red",ylab=ylabPar,xlab=xlabPars)
+		plot(1:nSweeps,parData[,1],type="l",lty=1,col="red",ylab=ylabPar,xlab=xlabPars,cex.axis=1.5,cex.lab=1.5)
 	} else if (parameters=="beta"){
-		plot(rangeSweeps,parData[rangeParData,whichBeta],type="l",lty=1,col="red",ylab=ylabPar,xlab=xlabPars)
+		plot(rangeSweeps,parData[rangeParData,whichBeta],type="l",lty=1,col="red",ylab=ylabPar,xlab=xlabPars,cex.axis=1.5,cex.lab=1.5)
 	}
 
 }
@@ -2641,10 +2672,10 @@ plotPredictions<-function(outfile,runInfoObj,predictions,logOR=FALSE){
 		plotObj<-ggplot(plotDF)
 		plotObj<-plotObj+geom_line(aes(x=logOddsRatio,y=density),size=0.2)
 		plotObj<-plotObj+theme(legend.position="none")
-		plotObj<-plotObj+labs(x=ifelse(logOR==TRUE,"Log OR of response","Response"))+theme(axis.title.x=element_text(size=7))+labs(y="Density")+theme(axis.title.y=element_text(size=7,angle=90))							
-		plotObj<-plotObj+theme(axis.text.x=element_text(size=7))+theme(axis.text.y=element_text(size=7))
+		plotObj<-plotObj+labs(x=ifelse(logOR==TRUE,"Log OR of response","Response"))+theme(axis.title.x=element_text(size=15))+labs(y="Density")+theme(axis.title.y=element_text(size=15,angle=90))
+		plotObj<-plotObj+theme(axis.text.x=element_text(size=15))+theme(axis.text.y=element_text(size=15))
 		print(plotObj)
 	}
-	
+	output<-dev.off()
 }
 
