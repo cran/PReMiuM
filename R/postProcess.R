@@ -55,6 +55,8 @@ profRegr<-function(covNames, fixedEffectsNames, outcome="outcome", outcomeT=NA, 
 
 	if (sum(is.na(dataMatrix))>0) stop("ERROR: the outcome cannot have missing values. Use the profiles with missing outcome for predictions.")
 
+	if (length(dataMatrix)==0) stop("ERROR: the outcome provided is not one of the names of the variables in the dataframe.")
+
 	# recode outcome covariates
 	if (yModel=="Categorical"||yModel=="Bernoulli"){
 		outcomeY<-dataMatrix
@@ -99,7 +101,7 @@ profRegr<-function(covNames, fixedEffectsNames, outcome="outcome", outcomeT=NA, 
 			tmpCov<-dataMatrix[,(1+k)]
 			xLevels[k]<-length(levels(as.factor(tmpCov)))	
 			if (!(min(tmpCov,na.rm=TRUE)==0&&max(tmpCov,na.rm=TRUE)==(xLevels[k]-1)&&sum(!is.wholenumber(tmpCov[!is.na(tmpCov)]))==0)) {
-				print(paste("Recoding of covariate number ",colnames(dataMatrix)[k+1]," as follows",sep=""))
+				print(paste("Recoding of covariate ",colnames(dataMatrix)[k+1]," as follows",sep=""))
 				tmpCovFactor<-as.factor(tmpCov)
 				tmpLevels<-levels(tmpCovFactor)
 				print(paste("Replacing level ",levels(tmpCovFactor)," with ",c(0:(xLevels[k]-1)),sep=""))
@@ -152,7 +154,7 @@ profRegr<-function(covNames, fixedEffectsNames, outcome="outcome", outcomeT=NA, 
 		}
 	} else {
 		nFixedEffects<-0
-		if (yModel=="Survival") stop("ERROR: For the current implementation of Survival outcome the fixed effects must be provided. ")
+		#if (yModel=="Survival") stop("ERROR: For the current implementation of Survival outcome the fixed effects must be provided. ")
 	}
 
 	#  extra outcome data
@@ -340,6 +342,12 @@ profRegr<-function(covNames, fixedEffectsNames, outcome="outcome", outcomeT=NA, 
 		}
 		if (!is.null(hyper$rateTauCAR)){
 		  write(paste("rateTauCAR=",hyper$rateTauCAR,sep=""),hyperFile,append=T)
+		}
+		if (!is.null(hyper$shapeNu)){
+			write(paste("shapeNu=",hyper$shapeNu,sep=""),hyperFile,append=T)
+		}
+		if (!is.null(hyper$scaleNu)){
+			write(paste("scaleNu=",hyper$scaleNu,sep=""),hyperFile,append=T)
 		}
 	}
 
@@ -2167,7 +2175,7 @@ margModelPosterior<-function(runInfoObj,allocation){
 	}
 
 	write.table(margModPost,file.path(directoryPath,paste(fileStem,"_margModPost.txt",sep="")), col.names = FALSE,row.names = FALSE)
-	return(mean(margModPost))
+	return(list("meanMargModPost"=mean(margModPost),"runInfoObj"=runInfoObj))
 }
 
 # internal function
@@ -2384,7 +2392,7 @@ margModelPosterior<-function(runInfoObj,allocation){
 setHyperparams<-function(shapeAlpha=NULL,rateAlpha=NULL,aPhi=NULL,mu0=NULL,Tau0=NULL,R0=NULL,
 	kappa0=NULL,muTheta=NULL,sigmaTheta=NULL,dofTheta=NULL,muBeta=NULL,sigmaBeta=NULL,dofBeta=NULL,
 	shapeTauEpsilon=NULL,rateTauEpsilon=NULL,aRho=NULL,bRho=NULL,atomRho=NULL,shapeSigmaSqY=NULL,scaleSigmaSqY=NULL,
-	rSlice=NULL,truncationEps=NULL,shapeTauCAR=NULL,rateTauCAR=NULL){
+	rSlice=NULL,truncationEps=NULL,shapeTauCAR=NULL,rateTauCAR=NULL,shapeNu=NULL,scaleNu=NULL){
 	out<-list()
 	if (!is.null(shapeAlpha)){
 		out$shapeAlpha<-shapeAlpha
@@ -2457,6 +2465,12 @@ setHyperparams<-function(shapeAlpha=NULL,rateAlpha=NULL,aPhi=NULL,mu0=NULL,Tau0=
 	}
 	if (!is.null(rateTauCAR)){
 	  out$rateTauCAR<-rateTauCAR
+	}	
+	if (!is.null(shapeNu)){
+		out$shapeNu<-shapeNu
+	}
+	if (!is.null(scaleNu)){
+		out$scaleNu<-scaleNu
 	}
 	return(out)
 }
