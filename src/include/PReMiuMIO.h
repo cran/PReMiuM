@@ -108,6 +108,8 @@ pReMiuMOptions processCommandLine(string inputStr){
 			Rprintf("--extraYVar\n\tIf included extra Gaussian variance is included in the\n\tresponse model (not included).\n");
 			Rprintf("--varSelect=<string>\n\tThe type of variable selection to be used 'None',\n\t'BinaryCluster' or 'Continuous' (None)\n");
 			Rprintf("--entropy\n\tIf included then we compute allocation entropy (not included)\n");
+			Rprintf("--predictType=<string>\n\tThe type of predictions to be used 'RaoBlackwell' or 'random' (RaoBlackwell)\n");
+			Rprintf("--weibullFixedShape=<bool>\n\tWhether the shape parameter of the Weibull distribution is fixed.\n");
 		}else{
 			while(currArg < argc){
 				inString.assign(inputStrings[currArg]);
@@ -243,6 +245,17 @@ pReMiuMOptions processCommandLine(string inputStr){
 					options.varSelectType(varSelectType);
 				}else if(inString.find("--entropy")!=string::npos){
 					options.computeEntropy(true);
+				}else if(inString.find("--predType")!=string::npos){
+					size_t pos = inString.find("=")+1;
+					string predictType = inString.substr(pos,inString.size()-pos);
+					if(predictType.compare("RaoBlackwell")!=0&&predictType.compare("random")!=0){
+						// Illegal predictType type entered
+						wasError=true;
+						break;
+					}
+					options.predictType(predictType);
+				}else if(inString.find("--weibullFixedShape")!=string::npos){
+					options.weibullFixedShape(true);
 				}else{
 					Rprintf("Unknown command line option.\n");
 					wasError=true;
@@ -804,6 +817,23 @@ void readHyperParamsFromFile(const string& filename,pReMiuMHyperParams& hyperPar
 			string tmpStr = inString.substr(pos,inString.size()-pos);
 			double rateTauCAR = (double)atof(tmpStr.c_str());
 			hyperParams.rateTauCAR(rateTauCAR);
+		}else if(inString.find("initAlloc")==0){
+			size_t pos = inString.find("=")+1;
+			string tmpStr = inString.substr(pos,inString.size()-pos);
+			vector<double> initAl;
+			while(tmpStr.find(" ")!=string::npos){
+				pos = tmpStr.find(" ");
+				if(pos==(tmpStr.size()-1)){
+					string elem = tmpStr.substr(0,pos);
+					initAl.push_back((double)atof(elem.c_str()));
+					tmpStr = tmpStr.substr(pos+1,tmpStr.size());
+					break;
+				}
+				string elem = tmpStr.substr(0,pos);
+				initAl.push_back((double)atof(elem.c_str()));
+				tmpStr = tmpStr.substr(pos+1,tmpStr.size());
+			}
+			hyperParams.initAlloc(initAl);
 		}
 
 	}
@@ -845,6 +875,8 @@ void initialisePReMiuM(baseGeneratorType& rndGenerator,
 	bool includeResponse = options.includeResponse();
 	bool responseExtraVar = options.responseExtraVar();
 	bool includeCAR=options.includeCAR();
+	string predictType = options.predictType();
+	bool weibullFixedShape = options.weibullFixedShape();
 
 	vector<unsigned int> nCategories;
 	nCategories = dataset.nCategories();
@@ -861,7 +893,8 @@ void initialisePReMiuM(baseGeneratorType& rndGenerator,
 	// Allocate the right sizes for each of the parameter variables
 	// This also switches "on" all variable indicators (gamma)
 	// This gets changed below if variable selection is being done
-	params.setSizes(nSubjects,nCovariates,nDiscreteCovs,nContinuousCovs,nFixedEffects,nCategoriesY,nPredictSubjects,nCategories,nClusInit,covariateType);
+	params.setSizes(nSubjects,nCovariates,nDiscreteCovs,nContinuousCovs,nFixedEffects,nCategoriesY,
+		nPredictSubjects,nCategories,nClusInit,covariateType,weibullFixedShape);
 	unsigned int maxNClusters=params.maxNClusters();
 
 	// Define a uniform random number generator
@@ -912,18 +945,31 @@ void initialisePReMiuM(baseGeneratorType& rndGenerator,
 	unsigned int maxZ=0;
 
 	params.workNClusInit(nClusInit);
-	for(unsigned int i=0;i<nSubjects+nPredictSubjects;i++){
-		int c=(int) nClusInit*unifRand(rndGenerator);
-		params.z(i,c,covariateType);
-		if(c>(int)maxZ){
-			maxZ=c;
+	if (hyperParams.initAlloc().empty()){
+		for(unsigned int i=0;i<nSubjects+nPredictSubjects;i++){
+			int c=(int) nClusInit*unifRand(rndGenerator);
+			params.z(i,c,covariateType);
+			if(c>(int)maxZ){
+				maxZ=c;
+			}
+			if(i<nSubjects){
+				nXInCluster[c]++;
+			}
 		}
-		if(i<nSubjects){
-
-			nXInCluster[c]++;
-
+	} else {
+		for(unsigned int i=0;i<nSubjects+nPredictSubjects;i++){
+			int c = hyperParams.initAlloc(i);
+			params.z(i,c,covariateType);
+			if(c>(int)maxZ){
+				maxZ=c;
+			}
+			if(i<nSubjects){
+				nXInCluster[c]++;
+			}
 		}
 	}
+
+
 	params.workNXInCluster(nXInCluster);
 	params.workMaxZi(maxZ);
 
@@ -1386,8 +1432,16 @@ void initialisePReMiuM(baseGeneratorType& rndGenerator,
 
 		if(outcomeType.compare("Survival")==0){
 			randomGamma gammaRand(hyperParams.shapeNu(),hyperParams.scaleNu());
-			double nu=gammaRand(rndGenerator);
-			params.nu(nu);
+			if(weibullFixedShape){
+				double nu=gammaRand(rndGenerator);
+				params.nu(0,nu);
+
+			} else {
+				for (unsigned int c=0;c<maxNClusters;c++){
+					double nu=gammaRand(rndGenerator);
+					params.nu(c,nu);
+				}
+			}
 		}
 
 		// And also the extra variation values if necessary
@@ -1446,6 +1500,7 @@ void initialisePReMiuM(baseGeneratorType& rndGenerator,
 void writePReMiuMOutput(mcmcSampler<pReMiuMParams,pReMiuMOptions,pReMiuMPropParams,pReMiuMData>& sampler,
 								const unsigned int& sweep){
 
+
 	bool reportBurnIn = sampler.reportBurnIn();
 	unsigned int nBurn = sampler.nBurn();
 	unsigned int nFilter = sampler.nFilter();
@@ -1471,6 +1526,8 @@ void writePReMiuMOutput(mcmcSampler<pReMiuMParams,pReMiuMOptions,pReMiuMPropPara
 		bool computeEntropy = sampler.model().options().computeEntropy();
 		unsigned int nFixedEffects = params.nFixedEffects(outcomeType);
 		string varSelectType = sampler.model().options().varSelectType();
+		string predictType = sampler.model().options().predictType();
+		bool weibullFixedShape = sampler.model().options().weibullFixedShape();
 
 		const pReMiuMData& dataset = sampler.model().dataset();
 		pReMiuMPropParams& proposalParams = sampler.proposalParams();
@@ -1819,7 +1876,19 @@ void writePReMiuMOutput(mcmcSampler<pReMiuMParams,pReMiuMOptions,pReMiuMPropPara
 					*(outFiles[sigmaSqYInd]) << params.sigmaSqY() << endl;
 				}
 				if(outcomeType.compare("Survival")==0){
-					*(outFiles[nuInd]) << params.nu() << endl;
+				// Print parameter nu for each cluster
+					if (weibullFixedShape){
+						*(outFiles[nuInd]) << params.nu(0) << endl;
+					} else {
+						for(unsigned int c=0;c<maxNClusters;c++){
+							*(outFiles[nuInd]) << params.nu(c);
+							if(c<maxNClusters-1){
+								*(outFiles[nuInd]) << " ";
+							}else{
+								*(outFiles[nuInd]) << endl;
+							}
+						}				
+					}
 				}
 				// Print beta
 				for(unsigned int j=0;j<nFixedEffects;j++){
@@ -2057,6 +2126,7 @@ string storeLogFileData(const pReMiuMOptions& options,
 	ostringstream tmpStr;
 	tmpStr << "Number of subjects: " << dataset.nSubjects() << endl;
 	tmpStr << "Number of prediction subjects: " << dataset.nPredictSubjects() << endl;
+	tmpStr << "Prediction type: " << options.predictType() << endl;
 	tmpStr << "Sampler type: " << options.samplerType();
 	if(options.samplerType().compare("Truncated")==0){
 		tmpStr << " " << maxNClusters << " clusters" << endl;
@@ -2182,8 +2252,8 @@ string storeLogFileData(const pReMiuMOptions& options,
 		tmpStr << "shapeSigmaSqY: " << hyperParams.shapeSigmaSqY() << endl;
 		tmpStr << "scaleSigmaSqY: " << hyperParams.scaleSigmaSqY() << endl;
 	}
-
 	if(dataset.outcomeType().compare("Survival")==0){
+		tmpStr << "Weibull with fixed shape parameter: " << options.weibullFixedShape() << endl;
 		tmpStr << "shapeNu: " << hyperParams.shapeNu() << endl;
 		tmpStr << "scaleNu: " << hyperParams.scaleNu() << endl;
 	}

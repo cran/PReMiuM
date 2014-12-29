@@ -148,7 +148,7 @@ generateSampleDataFile<-function(clusterSummary){
 			beta<-as.matrix(clusterSummary$fixedEffectsCoeffs,nrow=1)
 		}
 	}
-   	if (outcomeType=='Weibull'){
+   	if (outcomeType=='Survival'){
 		shape=clusterSummary$shape # shape parameter of the Weibull - constant across clusters
 		censorT = clusterSummary$censorT # time to censor the outcomes
 		event = clusterSummary$event # indicator variable for whether event has occured (1 = occured, 0 = censored)
@@ -180,8 +180,10 @@ generateSampleDataFile<-function(clusterSummary){
 		}else{        
 			if(i<=subjectsPerCluster[k]){
 				theta<-clusterSummary$clusterData[[k]]$theta
+				if (outcomeType=="Survival") shapeTmp<-clusterSummary$shape[k]
 			}else{
 				theta<-clusterSummary$clusterData[[k+1]]$theta
+				if (outcomeType=="Survival") shapeTmp<-clusterSummary$shape[k+1]
 				k<-k+1
 				subjectsPerCluster[k]<-subjectsPerCluster[k]+subjectsPerCluster[k-1]
 			}
@@ -211,15 +213,15 @@ generateSampleDataFile<-function(clusterSummary){
 			p<-1/(1+exp(-mu))	
 			Y[i]<-sum(runif(nTrials[i])<p)
 		}else if(outcomeType=='Normal'){
-			Y[i]<-rnorm(1,mu,sqrt(sigmaSqY))
+			Y[i]<-rnorm(1,mu+U[i],sqrt(sigmaSqY))
 		}else if (outcomeType=='Categorical'){
 			p<-vector()
 			sumMu<-sum(exp(mu))		
 			p[1]<-1/sumMu
 			for (kk in 2:nCategoriesY) p[kk]<-exp(mu[kk])/sumMu
 			Y[i]<-which(rmultinom(1,1,p)==1)-1
-		}else if (outcomeType == 'Weibull'){
-			Y[i] <- rweibull(1, shape=shape, scale=(exp(mu))) # create an outcome from the Weibull 
+		}else if (outcomeType == 'Survival'){
+			Y[i] <-rWEI2(1, exp(mu), shapeTmp)#rlnorm(1,exp(mu),shapeTmp)#  #rweibull(1,exp(mu),shapeTmp)         #scale = exp(mu) 
 			if (Y[i] >  censorT){  
 				Y[i] <- censorT 
 				event[i] <- 0
@@ -269,7 +271,7 @@ generateSampleDataFile<-function(clusterSummary){
 		out$inputData <- outData
 		out$outcomeT <- "outcomeT"
 	}
-	if(clusterSummary$outcomeType=="Weibull"){
+	if(clusterSummary$outcomeType=="Survival"){
 		outData<-data.frame(cbind(outData,event))
 		out$inputData <- outData	
 		colnames(outData) <- c("outcome",covNames,fixEffNames, "event")
@@ -491,6 +493,31 @@ clusSummaryPoissonNormalSpatial<-function(){
     'nFixedEffects'=2,
     'fixedEffectsCoeffs'=c(-0.05,0.1),
     'offsetLims'=c(0.9,1.1),
+    'missingDataProb'=0.001,
+    'nClusters'=3,
+    'clusterSizes'=c(50,60,40),
+    'includeCAR'=TRUE,
+    'TauCAR'=100,
+    'clusterData'=list(list('theta'=log(10),
+                            'covariateMeans'=c(0,2),
+                            'covariateCovariance'=matrix(c(0.5,0,0,3),nrow=2)),
+                       list('theta'=log(3),
+                            'covariateMeans'=c(3,2),
+                            'covariateCovariance'=matrix(c(1,0,0,1),nrow=2)),
+                       list('theta'=log(0.1),
+                            'covariateMeans'=c(10,-5),
+                            'covariateCovariance'=matrix(c(2,0.7,0.7,1),nrow=2))))
+}
+
+
+clusSummaryNormalNormalSpatial<-function(){
+  list(
+    'outcomeType'='Normal',
+    'covariateType'='Normal',
+    'nCovariates'=2,
+	'sigmaSqY'=1,
+    'nFixedEffects'=2,
+    'fixedEffectsCoeffs'=c(-0.05,0.1),
     'missingDataProb'=0.001,
     'nClusters'=3,
     'clusterSizes'=c(50,60,40),
@@ -737,31 +764,31 @@ clusSummaryBernoulliNormal<-function(){
 
 clusSummaryWeibullDiscrete<-function(){                 
 	list(
-	'outcomeType'='Weibull',
+	'outcomeType'='Survival',
 	'covariateType'='Discrete',
 	'nCovariates'=5,
 	'nCategories'=c(2,2,3,3,4),
 	'nFixedEffects'=1,                                      
 	'fixedEffectsCoeffs'=c(0),
-	'shape'=1.5,
-	'censorT'=5,                                                                  
+	'shape'=c(2,2.4,3),
+	'censorT'=50,                                                                  
 	'missingDataProb'=0,
 	'nClusters'=3,                                      
 	'clusterSizes'=c(250,250,250),
 	'includeCAR'=FALSE,
-	'clusterData'=list(list('theta'=1.6,                   
+	'clusterData'=list(list('theta'=log(0.01),                   
 		'covariateProbs'=list(c(0.8,0.2),
 			c(0.8,0.2),
 			c(0.8,0.1,0.1),
 			c(0.8,0.1,0.1),
 			rep(0.25,4))),
-		list('theta'=1.25,            
+		list('theta'=log(0.001),            
 		'covariateProbs'=list(c(0.8,0.2),
-			c(0.1,0.8),
+			c(0.2,0.8),
 			c(0.1,0.1,0.8),
 			c(0.1,0.8,0.1),
 			rep(0.25,4))),
-		list('theta'= 0.3,  
+		list('theta'= log(0.005),  
 		'covariateProbs'=list(c(0.2,0.8),
 			c(0.2,8),
 			c(0.1,0.1,0.8),

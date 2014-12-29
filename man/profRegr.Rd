@@ -5,18 +5,20 @@
 \usage{
 profRegr(covNames, fixedEffectsNames, outcome="outcome", 
         outcomeT=NA, data, output="output", hyper, predict, 
+	predictType="RaoBlackwell",
         nSweeps=1000, nBurn=1000, nProgress=500, nFilter=1, 
         nClusInit, seed, yModel="Bernoulli", xModel="Discrete", 
         sampler="SliceDependent", alpha=-2, dPitmanYor = 0, excludeY=FALSE, 
         extraYVar=FALSE, varSelectType="None", entropy,reportBurnIn=FALSE,
         run=TRUE, discreteCovs, continuousCovs, whichLabelSwitch="123",
-	includeCAR=FALSE, neighboursFile="Neighbours.txt")
+	includeCAR=FALSE, neighboursFile="Neighbours.txt",
+	weibullFixedShape=TRUE)
 }
 \arguments{
 \item{covNames}{A vector of strings of the covariate names as by the column names in the data argument.}
 \item{fixedEffectsNames}{A vector of strings of the fixed effect names as by the column names in the data argument. Each fixed effect must be of class 'numeric'. If a fixed effect is of class 'character', an error message will appear and the fixed effect will need to be recoded as numeric.}
 \item{outcome}{A string of column of the data argument that contains the outcome. The outcome cannot have missing values - you could consider predicting the value of the outcome for those subjects for which it has not been observed.}
-\item{outcomeT}{A string of column of the data argument that contains the offset (for Poisson outcome) or the number of trials (for Binomial outcome).}
+\item{outcomeT}{A string of column of the data argument that contains the offset (for Poisson outcome) or the number of trials (for Binomial outcome) or censoring for Survival reponse (coded as 0 or 1).}
 \item{data}{A data frame which has as columns the outcome, the covariates, the fixed effects if any and the offset (for Poisson outcome) or the number of trials (for Binomial outcome) or censoring (for Survival outcome). The outcome cannot have missing values - you could consider predicting the value of the outcome for those subjects for which it has not been observed. For Survival response censoring must be coded as 0 if the event has not occurred (ie, there has been censoring) and 1 if the event has occurred (no censoring has taken place).}
 \item{output}{Path to folder to save all output files. The covariates can have missing values, which must be coded as 'NA'. There cannot be missing values in the fixed effects - if there are, use an imputation method before using profile regression.}
 \item{hyper}{Object of type setHyperparams with hyperparameters specifications. This is optional, default values are provided for all hyperparameters. See ?setHyperparams for details.}
@@ -25,7 +27,7 @@ profRegr(covNames, fixedEffectsNames, outcome="outcome",
 At each iteration the predictive subjects are assigned to one of the current
 clusters according to their covariate profiles (but ignoring missing values), or
 their Rao Blackwellised estimate of theta is recorded (a weighted average of all
-theta, weighted by the probability of allocation into each cluster.
+theta, weighted by the probability of allocation into each cluster. For Normal response they can also be randomly allocated. See also the option predictType below.
 
 The predictive subjects have no impact on the likelihood and so do not determine
 the clustering or parameters at each iteration. The predictive allocations are
@@ -34,8 +36,9 @@ then be processed in the post processing to create a dissimilarity matrix with
 the fitting subjects. The post procesing function calcPredictions will create
 predicted response values for these subjects.
 
-See ?calcPredictions for more details and examples.
+See ?calcPredictions for more details and examples. For Normal response, 
 }
+\item{predictType}{This can be set equal to "RaoBlackwell" and "random". The default is RaoBlackwell. The random option can only be used for Normal response, where the estimated variance of the clusters is considered and the predictive subjects are randomly assigned to a mixture component and then are also randomly sampled within that component.}
 \item{nSweeps}{Number of iterations of the MCMC after the burn-in period. By default this is 1000.}
 \item{nBurn}{Number of initial iterations of the MCMC to be discarded. By default this is 1000.}
 \item{reportBurnIn}{If TRUE then the burn in iterations are reported in the output files, if set to FALSE they are not. It is set to FALSE by default.}
@@ -56,8 +59,9 @@ See ?calcPredictions for more details and examples.
 \item{discreteCovs}{The names of the discrete covariates among the covariate names, if xModel="Mixed". This and continuousCovs must be defined if xModel="Mixed", while covNames is ignored.}
 \item{continuousCovs}{The names of the discrete covariates among the covariate names, if xModel="Mixed". This and continuousCovs must be defined if xModel="Mixed", while covNames is ignored.}
 \item{whichLabelSwitch}{The label switching moves to run. The options available are moves 1, 2 and 3 ("123"), moves 1 and 2 ("12") and move 3 only ("3"). The moves are described in Hastie et al. (2013). Note that the third label switching move is only available for Dirichlet process priors, so it will not be run if dPitmanYor>0. Therefore setting dPitmanYor to a value greater than zero will forse whichLabelSwitch=12.}
-\item{includeCAR}{A boolean specifying wether a conditional autoregressive term should be introduced within the model, to take into account possible spatial correlation within residuals.}
+\item{includeCAR}{A boolean specifying wether a conditional autoregressive term should be introduced within the model, to take into account possible spatial correlation within residuals. Only for Poisson and Normal response models.}
 \item{neighboursFile}{The file name of the file specifying neighbourhood graph. It should have the same structure than neighbourhood graph files used in the "INLA" package, and can be produced from a nb object of package "spdep", by the function "nb2INLA" of package "spdep". See ?nb2INLA for details.}
+\item{weibullFixedShape}{This parameter controls whether the shape parameter of the Weibull distribution (for yModel=Survival only) is a global parameter (fixed) or cluster specific. It is equal to TRUE by default.}
 }
 
 \value{
@@ -91,7 +95,9 @@ It returns a number of files in the output directory as well as a list with the 
 \item{yMat}{A matrix of the outcome data, including the offset if the outcome is Poisson, the number of trials if the outcome is Binomial and 0 or 1 for Survival outcome (1 for censored individuals, 0 otherwise).}
 \item{wMat}{A matrix of the fixed effect data.}
 \item{whichLabelSwitch}{The label switching moves that have been run. The options available are moves 1, 2 and 3 ("123"), moves 1 and 2 ("12") and move 3 only ("3"). The moves are described in Hastie et al. (2013).}
-\item{includeCAR}{Logical. Wether a spatial CAR term is included.}
+\item{includeCAR}{Logical. Whether a spatial CAR term is included.}
+\item{predictType}{String. Whether a RaoBlackwell or random predictions have been computed.}
+\item{weibullFixedShape}{Logical. Whether the shape parameter of the Weibull distribution for the survival response is fixed or cluster specific.}
 }
 \section{Authors}{
 David Hastie, Department of Epidemiology and Biostatistics, Imperial College London, UK
@@ -103,6 +109,9 @@ Aurore J. Lavigne, Department of Epidemiology and Biostatistics, Imperial Colleg
 Lamiae Azizi, MRC Biostatistics Unit, Cambridge, UK
 
 Maintainer: Silvia Liverani <liveranis@gmail.com>
+
+The R package PReMiuM is supported through research grants. One key requirement of such funding applications is the ability to demonstrate the impact of the work we seek funding for can. Whatever you are using PReMiuM for, it would be very helpful for us to learn about our users, to tailor our future methodological developments to your needs. Please email us at liveranis@gmail.com or visit http://www.silvialiverani.com/support-premium/. 
+
 }
 \references{
 

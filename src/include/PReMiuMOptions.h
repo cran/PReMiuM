@@ -85,6 +85,8 @@ class pReMiuMOptions{
 			_computeEntropy=false;
 			_includeCAR=false;
 			_neighbourFileName="Neighbour.txt";
+			_predictType ="RaoBlackwell";
+			_weibullFixedShape=false;
 		};
 
 		/// \brief Default destructor
@@ -331,7 +333,25 @@ class pReMiuMOptions{
 			_neighbourFileName=neiFileName;
 		}
 
+		/// \brief Return the prediction type
+		string predictType() const{
+			return _predictType;
+		}
 
+		/// \brief Set the prediction type
+		void predictType(const string& predType){
+			_predictType=predType;
+		}
+
+		/// \brief Return whether the shape parameter nu of the weibull for survival outcome is fixed or cluster specific
+		bool weibullFixedShape() const{
+			return _weibullFixedShape;
+		}
+
+		/// \brief Set whether the shape parameter nu of the weibull for survival outcome is fixed or cluster specific
+		void weibullFixedShape(const bool& fixedShape){
+			_weibullFixedShape=fixedShape;
+		}
 
 		// Copy operator
 		pReMiuMOptions& operator=(const pReMiuMOptions& options){
@@ -360,6 +380,8 @@ class pReMiuMOptions{
 			_computeEntropy=options.computeEntropy();
 			_includeCAR=options.includeCAR();
 			_neighbourFileName=options.neighbourFileName();
+			_predictType=options.predictType();
+			_weibullFixedShape=options.weibullFixedShape();
 			return *this;
 		}
 
@@ -413,7 +435,10 @@ class pReMiuMOptions{
 		bool _includeCAR;
 		// Neighbours structure file name
 		string _neighbourFileName;
-
+		// The type of predictions (RaoBlackwell or random - which is only for yModel=Normal)
+		string _predictType;
+		// For Survival response, whether the weibull shape parameter is fixed or cluster specific
+		bool _weibullFixedShape;
 };
 
 #endif // DIPBACOPTIONS_H_

@@ -786,6 +786,7 @@ void gibbsForVActive(mcmcChain<pReMiuMParams>& chain,
 		currentParams.logPsi(c,tmp+log(vVal));
 		tmp += log(1-vVal);
 	}
+
 }
 
 // Moves for updating the Theta which are active i.e. Theta_c where c<=Z_max
@@ -803,6 +804,7 @@ void updateForPhiActive(mcmcChain<pReMiuMParams>& chain,
 	mcmcState<pReMiuMParams>& currentState = chain.currentState();
 	pReMiuMParams& currentParams = currentState.parameters();
 	pReMiuMHyperParams hyperParams = currentParams.hyperParams();
+
 
 	const pReMiuMData& dataset = model.dataset();
 	string varSelectType = model.options().varSelectType();
@@ -1134,6 +1136,7 @@ void metropolisHastingsForThetaActive(mcmcChain<pReMiuMParams>& chain,
 	const string outcomeType = model.dataset().outcomeType();
 	unsigned int nCategoriesY = currentParams.nCategoriesY();
 
+
 	// Find the number of clusters
 	unsigned int maxZ = currentParams.workMaxZi();
 
@@ -1233,8 +1236,9 @@ void metropolisHastingsForLabels123(mcmcChain<pReMiuMParams>& chain,
 	unsigned int c2=nonEmptyIndices[i2];
 
 	// Check whether we accept the move
-	double logAcceptRatio = ((double)currentParams.workNXInCluster(c2)-(double)currentParams.workNXInCluster(c1))
-								*(currentParams.logPsi(c1)-currentParams.logPsi(c2));
+	double logAcceptRatio = ((double)currentParams.workNXInCluster(c2)-
+		(double)currentParams.workNXInCluster(c1))
+		*(currentParams.logPsi(c1)-currentParams.logPsi(c2));
 
 	if(unifRand(rndGenerator)<exp(logAcceptRatio)){
 //		nAccept++;
@@ -1247,8 +1251,9 @@ void metropolisHastingsForLabels123(mcmcChain<pReMiuMParams>& chain,
 //	nTry++;
 	c1=(unsigned int)maxZ*unifRand(rndGenerator);
 
-	logAcceptRatio=(double)currentParams.workNXInCluster(c1)*log(1-currentParams.v(c1+1))
-							- (double)currentParams.workNXInCluster(c1+1)*log(1-currentParams.v(c1));
+	logAcceptRatio=(double)currentParams.workNXInCluster(c1)*
+		log(1-currentParams.v(c1+1))
+		- (double)currentParams.workNXInCluster(c1+1)*log(1-currentParams.v(c1));
 
 	if(unifRand(rndGenerator)<exp(logAcceptRatio)){
 		nAccept++;
@@ -1297,7 +1302,7 @@ void metropolisHastingsForLabels123(mcmcChain<pReMiuMParams>& chain,
 	logAcceptRatio=(double)(currentParams.workNXInCluster(c1)+currentParams.workNXInCluster(c1+1))*
 					log(exp(currentParams.logPsi(c1))+exp(currentParams.logPsi(c1+1)));
 	logAcceptRatio-=(double)(currentParams.workNXInCluster(c1)+currentParams.workNXInCluster(c1+1))*
-					log(exp(currentParams.logPsi(c1+1))*const1+exp(currentParams.logPsi(c1))*const2);
+					log(exp(currentParams.logPsi(c1))*const1+exp(currentParams.logPsi(c1+1))*const2);
 	logAcceptRatio+=(double)(currentParams.workNXInCluster(c1+1))*log(const1);
 	logAcceptRatio+=(double)(currentParams.workNXInCluster(c1))*log(const2);
 
@@ -1939,8 +1944,6 @@ void gibbsForThetaInActive(mcmcChain<pReMiuMParams>& chain,
 	unsigned int nCategoriesY=dataset.nCategoriesY();
 	const string outcomeType = model.dataset().outcomeType();
 
-
-
 	// Find the number of clusters
 	unsigned int maxZ = currentParams.workMaxZi();
 	unsigned int maxNClusters = currentParams.maxNClusters();
@@ -1961,6 +1964,39 @@ void gibbsForThetaInActive(mcmcChain<pReMiuMParams>& chain,
 
 }
 
+// Gibbs for nu inactive (for survival case)
+void gibbsForNuInActive(mcmcChain<pReMiuMParams>& chain,
+								unsigned int& nTry,unsigned int& nAccept,
+								const mcmcModel<pReMiuMParams,
+												pReMiuMOptions,
+												pReMiuMData>& model,
+								pReMiuMPropParams& propParams,
+								baseGeneratorType& rndGenerator){
+
+	mcmcState<pReMiuMParams>& currentState = chain.currentState();
+	pReMiuMParams& currentParams = currentState.parameters();
+	pReMiuMHyperParams hyperParams = currentParams.hyperParams();
+	const pReMiuMData& dataset = model.dataset();
+	unsigned int nCategoriesY=dataset.nCategoriesY();
+	const string outcomeType = model.dataset().outcomeType();
+
+
+	unsigned int nSubjects = currentParams.nSubjects();
+	unsigned int nCovariates = currentParams.nCovariates();
+
+	// Find the number of clusters
+	unsigned int maxZ = currentParams.workMaxZi();
+	unsigned int maxNClusters = currentParams.maxNClusters();
+
+	nTry++;
+	nAccept++;
+
+	randomGamma gammaRand(hyperParams.shapeNu(),hyperParams.scaleNu());
+	for(unsigned int c=maxZ+1;c<maxNClusters;c++){
+		double nu=gammaRand(rndGenerator);
+		currentParams.nu(c,nu);
+	}
+}
 
 /*********** BLOCK 4 p(Theta^N|.) **********************************/
 // N=Non-cluster, and Theta contains: beta, rho, omega, lambda, tau_epsilon, uCAR and TauCAR
@@ -2317,7 +2353,6 @@ void gibbsForSigmaSqY(mcmcChain<pReMiuMParams>& chain,
 										pReMiuMData>& model,
 						pReMiuMPropParams& propParams,
 						baseGeneratorType& rndGenerator){
-
 	mcmcState<pReMiuMParams>& currentState = chain.currentState();
 	pReMiuMParams& currentParams = currentState.parameters();
 	pReMiuMHyperParams hyperParams = currentParams.hyperParams();
@@ -2364,13 +2399,22 @@ void gibbsForNu(mcmcChain<pReMiuMParams>& chain,
 	mcmcState<pReMiuMParams>& currentState = chain.currentState();
 	pReMiuMParams& currentParams = currentState.parameters();
 	pReMiuMHyperParams hyperParams = currentParams.hyperParams();
+	const bool weibullFixedShape=model.options().weibullFixedShape();
+	// Find the number of clusters
+	unsigned int maxZ = currentParams.workMaxZi();
 
 	nTry++;
 	nAccept++;
 
-	double nu = ARSsampleNu(currentParams, model, 0,logNuPostSurvival,rndGenerator);
-	currentParams.nu(nu);
-
+	if (weibullFixedShape){
+		double nu = ARSsampleNu(currentParams, model, 0,logNuPostSurvival,rndGenerator);
+		currentParams.nu(0,nu);
+	} else {
+		for (unsigned int c=0;c<maxZ;c++){
+			double nu = ARSsampleNu(currentParams, model, c,logNuPostSurvival,rndGenerator);
+			currentParams.nu(c,nu);
+		}
+	}
 }
 
 
@@ -2436,17 +2480,43 @@ void gibbsForUCAR(mcmcChain<pReMiuMParams>& chain,
 	pReMiuMParams& currentParams = currentState.parameters();
 	const pReMiuMData& dataset = model.dataset();
 	unsigned int nSubjects=dataset.nSubjects();
+	const string& outcomeType = model.dataset().outcomeType();
+	unsigned int nFixedEffects=dataset.nFixedEffects();
+
 	//Rprintf("TauCAR after update of uCAR is %f \n .", currentParams.TauCAR());
 	nTry++;
 	nAccept++;
-
+	
 	vector<double> tempU;
 	tempU.resize(nSubjects);
-	for (unsigned int iSub=0; iSub<nSubjects; iSub++){
-		double ui=ARSsampleCAR(currentParams, model, iSub,logUiPostPoissonSpatial,rndGenerator);
-		tempU[iSub]=ui;
+	if(outcomeType.compare("Poisson")==0){	
+		for (unsigned int iSub=0; iSub<nSubjects; iSub++){
+			double ui=ARSsampleCAR(currentParams, model, iSub,logUiPostPoissonSpatial,rndGenerator);
+			tempU[iSub]=ui;
+		}
+	} else if(outcomeType.compare("Normal")==0){	
+		for (unsigned int iSub=0; iSub<nSubjects; iSub++){
+			int nNeighi = dataset.nNeighbours(iSub);
+			double sigmaSqUCAR = 1/(1/currentParams.sigmaSqY()+currentParams.TauCAR()*nNeighi);
+			int Zi = currentParams.z(iSub);
+			double betaW = 0.0;
+			for(unsigned int j=0;j<nFixedEffects;j++){
+				betaW+=currentParams.beta(j,0)*dataset.W(iSub,j);
+			}
+			double meanUi=0.0;
+			for (int j = 0; j<nNeighi; j++){
+	        		unsigned int nj = dataset.neighbours(iSub,j);
+	        		double ucarj = currentParams.uCAR(nj-1);
+	        		meanUi+=ucarj;
+			}
+			meanUi/=nNeighi;	
+			double mUCAR = 1/currentParams.sigmaSqY()*(-dataset.continuousY(iSub)+currentParams.theta(Zi,0)+betaW)+currentParams.TauCAR()*nNeighi*meanUi;
+			mUCAR = mUCAR * sigmaSqUCAR;
+			randomNormal normRand(0,1);
+			tempU[iSub]=sigmaSqUCAR*normRand(rndGenerator)+mUCAR;
+		}
 	}
-	double meanU=0;
+	double meanU=0.0;
 	for (unsigned int i=0; i<nSubjects; i++){meanU+=tempU[i];}
 	meanU/=nSubjects;
 	for (unsigned int i=0; i<nSubjects; i++){tempU[i]-=meanU;}
@@ -2487,6 +2557,7 @@ void gibbsForZ(mcmcChain<pReMiuMParams>& chain,
 	bool includeResponse = model.options().includeResponse();
 	bool responseExtraVar = model.options().responseExtraVar();
 	const bool includeCAR=model.options().includeCAR();
+	const string& predictType = model.options().predictType();
 
 	nTry++;
 	nAccept++;
@@ -2522,7 +2593,6 @@ void gibbsForZ(mcmcChain<pReMiuMParams>& chain,
 	vector<vector<double> > logPXiGivenZi;
 	logPXiGivenZi.resize(nSubjects+nPredictSubjects);
 
-
 	if(covariateType.compare("Discrete")==0){
 		for(unsigned int i=0;i<nSubjects;i++){
 			logPXiGivenZi[i].resize(maxNClusters,0);
@@ -2540,7 +2610,6 @@ void gibbsForZ(mcmcChain<pReMiuMParams>& chain,
 				}
 			}
 		}
-
 		// For the predictive subjects we do not count missing data
 		for(unsigned int i=nSubjects;i<nSubjects+nPredictSubjects;i++){
 			logPXiGivenZi[i].resize(maxNClusters,0);
@@ -2555,7 +2624,6 @@ void gibbsForZ(mcmcChain<pReMiuMParams>& chain,
 				}
 			}
 		}
-
 	}else if(covariateType.compare("Normal")==0){
 		for(unsigned int i=0;i<nSubjects;i++){
 			logPXiGivenZi[i].resize(maxNClusters,0.0);
@@ -2673,7 +2741,6 @@ void gibbsForZ(mcmcChain<pReMiuMParams>& chain,
 				if(u[i]<testBound[c]){
 					VectorXd workMuStar=currentParams.workMuStar(c);
 					VectorXd xi=VectorXd::Zero(nNotMissing);
-//std::cout<<"n "<<nNotMissing<<std::endl;
 					VectorXd muStar=VectorXd::Zero(nNotMissing);
 					MatrixXd sqrtTau=MatrixXd::Zero(nNotMissing,nNotMissing);
 					double logDetTau =0.0;
@@ -2691,7 +2758,6 @@ void gibbsForZ(mcmcChain<pReMiuMParams>& chain,
 						unsigned int j=0;
 						for(unsigned int j0=0;j0<nContinuousCovs;j0++){
 							if(!missingX[i][nDiscreteCovs+j0]){
-//std::cout<<j<<std::endl;
 								xi(j)=currentParams.workContinuousX(i,j0);
 								muStar(j)=workMuStar(j0);
 								unsigned int r=0;
@@ -2719,7 +2785,6 @@ void gibbsForZ(mcmcChain<pReMiuMParams>& chain,
 	double (*logPYiGivenZiWi)(const pReMiuMParams&, const pReMiuMData&,
 											const unsigned int&,const int&,
 											const unsigned int&)=NULL;
-
 	if(includeResponse){
 		if(!responseExtraVar){
 			if(outcomeType.compare("Bernoulli")==0){
@@ -2828,16 +2893,32 @@ void gibbsForZ(mcmcChain<pReMiuMParams>& chain,
 			}else{
 				cumPzGivenXy[c]=cumPzGivenXy[c-1]+pzGivenXy[c];
 			}
-			if(includeResponse&&i>=nSubjects){
-				if(outcomeType.compare("Categorical")==0){
-					for (unsigned int k=0;k<nCategoriesY;k++){
-						expectedTheta[k]+=currentParams.theta(c,k)*pzGivenXy[c];
+			if (predictType.compare("RaoBlackwell")==0){
+				if(includeResponse&&i>=nSubjects){
+					if(outcomeType.compare("Categorical")==0){
+						for (unsigned int k=0;k<nCategoriesY;k++){
+							expectedTheta[k]+=currentParams.theta(c,k)*pzGivenXy[c];
+						}
+					} else {
+						expectedTheta[0]+=currentParams.theta(c,0)*pzGivenXy[c];
 					}
-				} else {
-					expectedTheta[0]+=currentParams.theta(c,0)*pzGivenXy[c];
 				}
 			}
 		}
+		if(includeResponse&&i>=nSubjects){
+			if (predictType.compare("random")==0){
+				// choose which component of the mixture we are sampling from
+				double u=unifRand(rndGenerator);
+				unsigned int c=0;
+				while(cumPzGivenXy[c]<=u){
+					c++;	
+				}
+				// draw from the normal distribution of that sample (only for xModel=Normal)
+				// Create a normal random generator
+				randomNormal normRand(0,1);
+				expectedTheta[0]=currentParams.sigmaSqY()*normRand(rndGenerator)+currentParams.theta(c,0);
+			}
+		}		
 		unsigned int zi;
 
 		if(maxNClusters==1){
