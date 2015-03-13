@@ -3,11 +3,13 @@
 \title{Calculation of the average risks and profiles}
 \description{Calculation of the average risks and profiles.}
 \usage{
-calcAvgRiskAndProfile(clusObj, includeFixedEffects=F)
+calcAvgRiskAndProfile(clusObj, includeFixedEffects=F,
+    proportionalHazards=F)
 }
 \arguments{
 \item{clusObj}{Object of type clusObj.}
 \item{includeFixedEffects}{By default this is set to FALSE. If it is set to FALSE then the risk profile is computed with the parameters beta of the fixed effects assumed equal to zero. If it is set to TRUE, then risk profile at each sweep is computed adjusting for the sample of the beta parameter at that sweep.}
+\item{proportionalHazards}{Whether the risk matrix should include lambda only for the yModel="Survival" case so that the proportional hazards can be computed in the plotting function. The default is the average survival time.}
 }
 \value{
 A list with the following components. This is an object of type riskProfileObj.
@@ -32,7 +34,7 @@ Maintainer: Silvia Liverani <liveranis@gmail.com>
 }
 \references{
 
-Liverani, S., Hastie, D. I., Azizi, L., Papathomas, M. and Richardson, S. (2014) PReMiuM: An R package for Profile Regression Mixture Models using Dirichlet Processes. \emph{Forthcoming in the Journal of Statistical Software}. Available at http://uk.arxiv.org/abs/1303.2836
+Silvia Liverani, David I. Hastie, Lamiae Azizi, Michail Papathomas, Sylvia Richardson (2015). PReMiuM: An R Package for Profile Regression Mixture Models Using Dirichlet Processes. Journal of Statistical Software, 64(7), 1-30. URL http://www.jstatsoft.org/v64/i07/.
 
 }
 \examples{

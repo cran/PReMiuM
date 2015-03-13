@@ -10,7 +10,7 @@ plotRiskProfile(riskProfObj, outFile, showRelativeRisk=F,
 \arguments{
 \item{riskProfObj}{An object of type riskProfObj.}
 \item{outFile}{Path and file name to save the plot.}
-\item{showRelativeRisk}{Whether to show the relative risk (with respect to the risk of the first cluster). This option is not available for Normal outcome.}
+\item{showRelativeRisk}{Whether to show the relative risk (with respect to the risk of the first cluster). This option is not available for Normal outcome. For Survival outcomes it computed proportional hazards, but only if the option proportionalHazards=T was used in the function calcAvgRiskAndProfile().} 
 \item{orderBy}{Order by which the clusters are to be displayed. It can take values "Empirical", "ClusterSize" and "Risk" (the latter only if the outcome is provided). It can also take the name of a covariate to order the clusters, in which case the clusters are ordered.}
 \item{whichClusters}{Either a vector of indeces that corresponds to the clusters that are to be displayed. The length of this vector must be greater than 1. The default is that all clusters are shown.}
 \item{whichCovariates}{Either a vector of indeces or a vector of strings that corresponds to the covariates that are to be displayed. The length of this vector must be greater than 1. The default is that all covariates are shown.}
@@ -40,7 +40,7 @@ Maintainer: Silvia Liverani <liveranis@gmail.com>
 }
 \references{
 
-Liverani, S., Hastie, D. I., Azizi, L., Papathomas, M. and Richardson, S. (2014) PReMiuM: An R package for Profile Regression Mixture Models using Dirichlet Processes. \emph{Forthcoming in the Journal of Statistical Software}. Available at http://uk.arxiv.org/abs/1303.2836
+Silvia Liverani, David I. Hastie, Lamiae Azizi, Michail Papathomas, Sylvia Richardson (2015). PReMiuM: An R Package for Profile Regression Mixture Models Using Dirichlet Processes. Journal of Statistical Software, 64(7), 1-30. URL http://www.jstatsoft.org/v64/i07/.
 
 }
 \examples{

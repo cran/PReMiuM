@@ -2227,7 +2227,6 @@ double logPYiGivenZiWiSurvival(const pReMiuMParams& params, const pReMiuMData& d
 	} else {
 		nu=params.nu(zi);
 	}
-
 	return logPdfWeibullCensored(dataset.continuousY(i), nu, exp(lambda), dataset.censoring(i));
 }
 

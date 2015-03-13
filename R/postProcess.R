@@ -665,7 +665,7 @@ calcOptimalClustering<-function(disSimObj,maxNClusters=NULL,useLS=F){
 
 # Function to take the optimal clustering and computing the risk and probability
 # profile
-calcAvgRiskAndProfile<-function(clusObj,includeFixedEffects=F){
+calcAvgRiskAndProfile<-function(clusObj,includeFixedEffects=F,proportionalHazards=F){
 
 	clusObjRunInfoObj=NULL
 	directoryPath=NULL
@@ -772,13 +772,11 @@ calcAvgRiskAndProfile<-function(clusObj,includeFixedEffects=F){
 			betaFileName <-file.path(directoryPath,paste(fileStem,'_beta.txt',sep=''))
 			betaFile<-file(betaFileName,open="r")
 		}
-	}
-	if (yModel=="Survival"){
-		if (weibullFixedShape){
-			nuFileName<-file.path(directoryPath,paste(fileStem,'_nu.txt',sep=''))
-			nuFile<-file(nuFileName,open="r")
-			nu<-(read.table(nuFile)[,1])
-			close(nuFile)
+		if (yModel=="Survival"&&weibullFixedShape){
+				nuFileName<-file.path(directoryPath,paste(fileStem,'_nu.txt',sep=''))
+				nuFile<-file(nuFileName,open="r")
+				nu<-(read.table(nuFile)[,1])
+				close(nuFile)
 		}
 	} 
 	
@@ -919,12 +917,16 @@ calcAvgRiskAndProfile<-function(clusObj,includeFixedEffects=F){
 					currRisk<-matrix(0,ncol=length(optAlloc[[c]]),nrow=nCategoriesY)
 					currRisk<-exp(currLambda)/rowSums(exp(currLambda))
 				}else if(yModel=="Survival"){
-					if (!weibullFixedShape){
-						currNuVector<-currNu[currZ[optAlloc[[c]]]]
-					} else {
-						currNuVector<-nu[sweep]
+					if (proportionalHazards){
+						currRisk<-exp(currLambda)
+					}else{
+						if (!weibullFixedShape){
+							currNuVector<-currNu[currZ[optAlloc[[c]]]]
+						} else {
+							currNuVector<-nu[sweep]
+						}
+						currRisk<-1/((exp(currLambda))^(1/currNuVector))*gamma(1+1/currNuVector)
 					}
-					currRisk<-1/((exp(currLambda))^(1/currNuVector))*gamma(1+1/currNuVector)
 
 				}
 				riskArray[sweep-firstLine+1,c,]<-apply(currRisk,2,mean)
@@ -974,6 +976,7 @@ calcAvgRiskAndProfile<-function(clusObj,includeFixedEffects=F){
 						array(currNullPhi[rep(1,length(optAlloc[[c]])),,],
 						dim=c(length(optAlloc[[c]]),dim(currNullPhi)[2],
 						dim(currNullPhi)[3])),2:3,mean))
+
 				}
 			}
 		}else if(xModel=='Normal'){
@@ -1043,21 +1046,24 @@ calcAvgRiskAndProfile<-function(clusObj,includeFixedEffects=F){
 					dim=c(length(optAlloc[[c]]),
 					dim(currPhi)[2],dim(currPhi)[3])),2:3,mean))
 				if(varSelect){
-					phiStarArray[sweep-firstLine+1,c,,]<-t(apply(array(currGamma[currZ[optAlloc[[c]]],,],
-						dim=c(length(optAlloc[[c]]),dim(currGamma)[2],
-						dim(currGamma)[3]))*array(currPhi[currZ[optAlloc[[c]]],,],
+					currGammaD<-array(currGamma[,,1:nDiscreteCovs],dim=c(currMaxNClusters,maxNCategories,nDiscreteCovs))
+					phiStarArray[sweep-firstLine+1,c,,]<-t(apply(array(currGammaD[currZ[optAlloc[[c]]],,],
+						dim=c(length(optAlloc[[c]]),dim(currGammaD)[2],
+						dim(currGammaD)[3]))*array(currPhi[currZ[optAlloc[[c]]],,],
 						dim=c(length(optAlloc[[c]]),dim(currPhi)[2],dim(currPhi)[3]))+
-						(1-array(currGamma[currZ[optAlloc[[c]]],,],
-						dim=c(length(optAlloc[[c]]),dim(currGamma)[2],dim(currGamma)[3])))*
+						(1-array(currGammaD[currZ[optAlloc[[c]]],,],
+						dim=c(length(optAlloc[[c]]),dim(currGammaD)[2],dim(currGammaD)[3])))*
 						array(currNullPhi[rep(1,length(optAlloc[[c]])),,],
 						dim=c(length(optAlloc[[c]]),dim(currNullPhi)[2],
 						dim(currNullPhi)[3])),2:3,mean))
 				}
 				muArray[sweep-firstLine+1,c,]<-apply(matrix(currMu[currZ[optAlloc[[c]]],],ncol=nContinuousCovs),2,mean)
 				if(varSelect){
-					muStarArray[sweep-firstLine+1,c,]<-apply(matrix(currGamma[currZ[optAlloc[[c]]],],
+					currGammaC<-array(currGamma[,1,(nDiscreteCovs+1):nCovariates],
+						dim=c(currMaxNClusters,nContinuousCovs))
+					muStarArray[sweep-firstLine+1,c,]<-apply(matrix(currGammaC[currZ[optAlloc[[c]]],],
 						ncol=nContinuousCovs)*matrix(currMu[currZ[optAlloc[[c]]],],ncol=nContinuousCovs)+
-						matrix(1-currGamma[currZ[optAlloc[[c]]],],ncol=nContinuousCovs)*
+						matrix(1-currGammaC[currZ[optAlloc[[c]]],],ncol=nContinuousCovs)*
 						matrix(currNullMu[rep(1,length(optAlloc[[c]])),],ncol=nContinuousCovs),2,mean)
 				}
 			}
@@ -1919,6 +1925,10 @@ calcPredictions<-function(riskProfObj,predictResponseFileName=NULL, doRaoBlackwe
 		}
 	}
 	
+	if (yModel=="Survival"){
+		restrictedMeanSurvival<-max(clusObjRunInfoObj$yMat[,1])
+	} 
+
 	firstLine<-ifelse(reportBurnIn,nBurn/nFilter+2,1)
 	lastLine<-(nSweeps+ifelse(reportBurnIn,nBurn+1,0))/nFilter
 	nSamples<-lastLine-firstLine+1
@@ -2084,7 +2094,9 @@ calcPredictions<-function(riskProfObj,predictResponseFileName=NULL, doRaoBlackwe
 			predictedY[sweep,,]<-lambda
 		}else if(yModel=='Survival'){
 			if (!weibullFixedShape) nu<-nuArrayPred[sweep,]
-			predictedY[sweep,,]<-1/((exp(lambda))^(1/nu))*gamma(1+1/nu)
+			tmpPredictedY<-1/((exp(lambda))^(1/nu))*gamma(1+1/nu)
+			tmpPredictedY[which(tmpPredictedY>restrictedMeanSurvival)]<-restrictedMeanSurvival
+			predictedY[sweep,,]<-tmpPredictedY
 		}else if(yModel=="Categorical"){
 			predictedY[sweep,,]<-exp(lambda)/rowSums(exp(lambda))
 		}
