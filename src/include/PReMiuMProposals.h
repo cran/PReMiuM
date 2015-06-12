@@ -974,6 +974,97 @@ void gibbsForMuActive(mcmcChain<pReMiuMParams>& chain,
 
 }
 
+// Gibbs update for mu in Normal covariate case and use of normal inverse prior
+void gibbsForMuActiveNIWP(mcmcChain<pReMiuMParams>& chain,
+				unsigned int& nTry,unsigned int& nAccept,
+				const mcmcModel<pReMiuMParams,pReMiuMOptions,pReMiuMData>& model,
+				pReMiuMPropParams& propParams,
+				baseGeneratorType& rndGenerator){
+
+	mcmcState<pReMiuMParams>& currentState = chain.currentState();
+	pReMiuMParams& currentParams = currentState.parameters();
+	pReMiuMHyperParams hyperParams = currentParams.hyperParams();
+
+	const pReMiuMData& dataset = model.dataset();
+
+	// Find the number of clusters
+	unsigned int maxZ = currentParams.workMaxZi();
+	// Find the number of covariates
+	unsigned int nCovariates = 0;
+	if(model.options().covariateType().compare("Mixed")==0){
+		nCovariates = currentParams.nContinuousCovs();
+	} else {
+		nCovariates = currentParams.nCovariates();
+	}
+	// Find the number of subjects
+	unsigned int nSubjects = dataset.nSubjects();
+
+	nTry++;
+	nAccept++;
+
+	// In the following it is useful to have the rows of X as
+	// Eigen dynamic vectors
+	vector<VectorXd> xi(nSubjects);
+	for(unsigned int i=0;i<nSubjects;i++){
+		xi[i].setZero(nCovariates);
+		for(unsigned int j=0;j<nCovariates;j++){
+			xi[i](j)=dataset.continuousX(i,j);
+		}
+	}
+
+	// We begin by computing the mean X for individuals in each cluster
+	vector<VectorXd> meanX(maxZ+1);
+	for(unsigned int c=0;c<=maxZ;c++){
+		meanX[c].setZero(nCovariates);
+	}
+
+	for(unsigned int i=0;i<nSubjects;i++){
+		meanX[currentParams.z(i)]=meanX[currentParams.z(i)]+xi[i];
+	}
+
+	vector<MatrixXd> gammaMat(maxZ+1);
+	vector<MatrixXd> oneMinusGammaMat(maxZ+1);
+	for(unsigned int c=0;c<=maxZ;c++){
+		gammaMat[c].setZero(nCovariates,nCovariates);
+		oneMinusGammaMat[c].setZero(nCovariates,nCovariates);
+		for(unsigned int j=0;j<nCovariates;j++){
+			gammaMat[c](j,j)=currentParams.gamma(c,j);
+			oneMinusGammaMat[c](j,j)=1-gammaMat[c](j,j);
+		}
+	}
+
+	for(unsigned int c=0;c<=maxZ;c++){
+		// Having computed this we can calcuate the posterior mean
+		// and posterior covariance for each mu_c
+		int nXInC = currentParams.workNXInCluster(c);
+		if(nXInC>0){
+			meanX[c]=meanX[c]/(double)nXInC;
+		}else{
+			meanX[c].setZero(nCovariates);
+		}
+		MatrixXd covMat(nCovariates,nCovariates);
+		covMat=(gammaMat[c]*currentParams.Sigma(c)*gammaMat[c])/(hyperParams.nu0()+nXInC);
+		//There are 0 on the diagonal elements of the covariance matrix when the covariate j is not selected
+		//we replace them by 0.1, the value does not care, since the sampling values will be replaced by \bar{x}_j
+		for (unsigned int j=0; j<=nCovariates; j++){
+            if (covMat(j,j)==0) covMat(j,j)=0.1;
+		}
+		VectorXd meanVec(nCovariates);
+        meanVec = hyperParams.nu0()*hyperParams.mu0()+
+					nXInC*(gammaMat[c]*meanX[c]-oneMinusGammaMat[c]*currentParams.nullMu());
+		meanVec /= (hyperParams.nu0()+nXInC);
+		VectorXd mu(nCovariates);
+		// We sample from this posterior
+		mu = multivarNormalRand(rndGenerator,meanVec,covMat);
+
+		// We store our sample
+		currentParams.mu(c,mu);
+
+	}
+
+}
+
+
 // Gibbs update for Tau in the Normal covariate case
 void gibbsForTauActive(mcmcChain<pReMiuMParams>& chain,
 				unsigned int& nTry,unsigned int& nAccept,
@@ -1819,6 +1910,48 @@ void gibbsForMuInActive(mcmcChain<pReMiuMParams>& chain,
 	meanVec = hyperParams.mu0();
 
 	for(unsigned int c=maxZ+1;c<maxNClusters;c++){
+		VectorXd mu(nCovariates);
+		// We sample from this posterior
+		mu = multivarNormalRand(rndGenerator,meanVec,covMat);
+		// We store our sample
+		currentParams.mu(c,mu);
+	}
+
+}
+
+// Gibbs update for mu in Normal covariate case when the normal inerve Whishart prior is used
+void gibbsForMuInActiveNIWP(mcmcChain<pReMiuMParams>& chain,
+				unsigned int& nTry,unsigned int& nAccept,
+				const mcmcModel<pReMiuMParams,pReMiuMOptions,pReMiuMData>& model,
+				pReMiuMPropParams& propParams,
+				baseGeneratorType& rndGenerator){
+
+	mcmcState<pReMiuMParams>& currentState = chain.currentState();
+	pReMiuMParams& currentParams = currentState.parameters();
+	pReMiuMHyperParams hyperParams = currentParams.hyperParams();
+
+	// Find the number of clusters
+	unsigned int maxZ = currentParams.workMaxZi();
+	unsigned int maxNClusters = currentParams.maxNClusters();
+	// Find the number of covariates
+	unsigned int nCovariates = 0;
+	if(model.options().covariateType().compare("Mixed")==0){
+		nCovariates = currentParams.nContinuousCovs();
+	} else {
+		nCovariates = currentParams.nCovariates();
+	}
+
+	nTry++;
+	nAccept++;
+
+
+	VectorXd meanVec(nCovariates);
+	meanVec = hyperParams.mu0();
+
+	for(unsigned int c=maxZ+1;c<maxNClusters;c++){
+        MatrixXd covMat(nCovariates,nCovariates);
+        covMat = currentParams.Sigma(c)/hyperParams.nu0();
+
 		VectorXd mu(nCovariates);
 		// We sample from this posterior
 		mu = multivarNormalRand(rndGenerator,meanVec,covMat);
@@ -2967,6 +3100,7 @@ void updateMissingPReMiuMData(baseGeneratorType& rndGenerator,
 	unsigned int nContinuousCovs = dataset.nContinuousCovs();
 	vector<unsigned int> nCategories = params.nCategories();
 	string covariateType = options.covariateType();
+	unsigned int& nPredictSubjects=dataset.nPredictSubjects();
 
 	// Define a uniform random number generator
 	randomUniform unifRand(0,1);
@@ -2975,8 +3109,9 @@ void updateMissingPReMiuMData(baseGeneratorType& rndGenerator,
 	// to and then sample for the appropriate
 	if(covariateType.compare("Discrete")==0){
 		// We don't update the predictive subjects as their X values which
-		// were missing are not used anywhere
-		for(unsigned int i=0;i<nSubjects;i++){
+		// were missing are not used anywhere 
+		// change: we now compute them because we are interested in looking at their posterior predictive distributions
+		for(unsigned int i=0;i<nSubjects+nPredictSubjects;i++){
 			int zi = params.z(i);
 			for(unsigned int j=0;j<nCovariates;j++){
 				if(dataset.missingX(i,j)){
@@ -3008,7 +3143,7 @@ void updateMissingPReMiuMData(baseGeneratorType& rndGenerator,
 			}
 		}
 	}else if(covariateType.compare("Normal")==0){
-		for(unsigned int i=0;i<nSubjects;i++){
+		for(unsigned int i=0;i<nSubjects+nPredictSubjects;i++){
 			// Check if there is anything to do
 			if(dataset.nContinuousCovariatesNotMissing(i)<nCovariates){
 				int zi = params.z(i);
@@ -3030,7 +3165,7 @@ void updateMissingPReMiuMData(baseGeneratorType& rndGenerator,
 		// Discrete part of mixed type covariates
 		// We don't update the predictive subjects as their X values which
 		// were missing are not used anywhere
-		for(unsigned int i=0;i<nSubjects;i++){
+		for(unsigned int i=0;i<nSubjects+nPredictSubjects;i++){
 			int zi = params.z(i);
 			for(unsigned int j=0;j<nDiscreteCovs;j++){
 				if(dataset.missingX(i,j)){
@@ -3063,7 +3198,7 @@ void updateMissingPReMiuMData(baseGeneratorType& rndGenerator,
 		}
 
 		// Normal part of mixed type covariates
-		for(unsigned int i=0;i<nSubjects;i++){
+		for(unsigned int i=0;i<nSubjects+nPredictSubjects;i++){
 			// Check if there is anything to do
 			if(dataset.nContinuousCovariatesNotMissing(i)<nContinuousCovs){
 				int zi = params.z(i);
