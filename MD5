@@ -1,10 +1,10 @@
-b5d63ad1c1cae8b6388bfb2345170f50 *ChangeLog
-47b29c05cc5e28b188e167f6f6ffaf98 *DESCRIPTION
-0a29bf3e3db403ec359b97b436f4168f *NAMESPACE
+9fd12aa3539325d75a6a28539e1a2223 *ChangeLog
+c8d768c9a38358243ff1acc11df1fa99 *DESCRIPTION
+e3d8e0ee39eba29eab4b0adae7468d9c *NAMESPACE
 84e011d7028b8f7c1801e5c66e9ff40c *R/generateData.R
-9515a7776c1925cc4d67a9683306a1dc *R/postProcess.R
+30e9907419e58e41b35d2506ca08f484 *R/postProcess.R
 fb7ebc7e98e4c1f7ab33622a19688ed0 *inst/CITATION
-da0e473df3bbda621484b2a28d782734 *man/PReMiuM-package.Rd
+84f3c27150342b0c1141ae5239435353 *man/PReMiuM-package.Rd
 7c7aaf54cdfe577a66bbdf6d810d1be1 *man/calcAvgRiskAndProfile.Rd
 5b0661ee97d90935a8ecc77f033f5b60 *man/calcDissimilarityMatrix.Rd
 17f160cb85028d3ecd78d64dc156972c *man/calcOptimalClustering.Rd
@@ -25,7 +25,7 @@ db6aae9c9507ff81989144fe65cc8f06 *man/plotRiskProfile.Rd
 095e4fcb51c7cb0fad4f43c27067a3f1 *man/vec2mat.Rd
 79574145089aec042b9fa92ab150531a *src/Makevars
 c2f37f0da60aa572c4fd964991891df6 *src/Makevars.win
-50a2d7d7ee26cbbbae77025cdf7ade54 *src/PReMiuM.cpp
+f359085a9d211e01fe43d4b98c7058ff *src/PReMiuM.cpp
 286728e7f8739437d51adbab11252bfd *src/include/MCMC/chain.h
 f3b7c7dca9852a14ca97dde1474bc844 *src/include/MCMC/model.h
 7b1662bce2dfdff44462ef8ec96be602 *src/include/MCMC/proposal.h
@@ -42,6 +42,6 @@ bc940a165869f9ea456ce3a1e60397df *src/include/Math/mathfunctions.h
 0df1c3f08eaaa4fe6457fa4daf380ba2 *src/include/PReMiuMIO.h
 7375a3c592da717e81039e8d1d0716ef *src/include/PReMiuMModel.h
 ccf5b1d2a01ea63db479bd5870a91c90 *src/include/PReMiuMOptions.h
-23993d9e0d28fa40d10b29a9b016fb64 *src/include/PReMiuMProposals.h
+d8287c7bf31370ab10736590eb113a78 *src/include/PReMiuMProposals.h
 7b2c4e02a59d721841a6d96a027ae0aa *src/include/postProcess.h
 0b7cf9bef2c4641aa5c0fa48a61aa7a5 *src/postProcess.cpp
