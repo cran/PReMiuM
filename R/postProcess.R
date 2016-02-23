@@ -1792,7 +1792,7 @@ plotRiskProfile<-function(riskProfObj,outFile,showRelativeRisk=F,orderBy=NULL,wh
 			profileDF<-data.frame("mu"=c(),"cluster"=c(),"muMean"=c(),
 				"lowerMu"=c(),"upperMu"=c(),"fillColor"=c())
 			if (nContinuousCovs==1){
-				muMat<-profileMu[,meanSortIndex]
+				muMat<-profileMu[,meanSortIndex,1]
 			} else {
 				muMat<-profileMu[,meanSortIndex,(j-nDiscreteCovs)]
 			}
@@ -1844,7 +1844,7 @@ plotRiskProfile<-function(riskProfObj,outFile,showRelativeRisk=F,orderBy=NULL,wh
 			profileDF<-data.frame("sigma"=c(),"cluster"=c(),"sigmaMean"=c(),
 				"lowerSigma"=c(),"upperSigma"=c(),"fillColor"=c())
 			if (nContinuousCovs==1){
-				sigmaMat<-profileStdDev[,meanSortIndex]
+				sigmaMat<-profileStdDev[,meanSortIndex,1,1]
 			} else {
 				sigmaMat<-profileStdDev[,meanSortIndex,(j-nDiscreteCovs),(j-nDiscreteCovs)]
 			}
@@ -2883,7 +2883,7 @@ plotPredictions<-function(outfile,runInfoObj,predictions,logOR=FALSE){
 	
 	denObj<-vector(mode="list")
 	for(i in 1:nPredictSubjects){
-		denObj[[i]]<-density(na.omit(preds[,i]),bw=0.8)
+		denObj[[i]]<-density(na.omit(preds[,i]))#,bw=0.8) # removed over smoothing of predictions
 	}
 	
 	for(k in 1:nPredictSubjects){
