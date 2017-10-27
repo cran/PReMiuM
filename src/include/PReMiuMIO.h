@@ -41,6 +41,7 @@
 #include<sstream>
 #include<algorithm>
 #include<iterator>
+#include<cstdint>
 
 #include<Eigen/Core>
 #include<Eigen/Cholesky>
@@ -160,7 +161,7 @@ pReMiuMOptions processCommandLine(string inputStr){
 				}else if(inString.find("--seed")!=string::npos){
 					size_t pos = inString.find("=")+1;
 					string tmpStr = inString.substr(pos,inString.size()-pos);
-					long rndSeed=(long)atoi(tmpStr.c_str());
+					uint_fast32_t rndSeed=(uint_fast32_t)atoi(tmpStr.c_str());
 					options.seed(rndSeed);
 				}else if(inString.find("--yModel")!=string::npos){
 					size_t pos = inString.find("=")+1;
@@ -1370,7 +1371,7 @@ void initialisePReMiuM(baseGeneratorType& rndGenerator,
 			vector<unsigned int> countXVec(nContinuousCovs,0);
 			for(unsigned int i=0;i<nSubjects;i++){
 				for(unsigned int j=0;j<nContinuousCovs;j++){
-					if(!dataset.missingX(i,j)){
+					if(!dataset.missingX(i,nDiscreteCovs+j)){
 						meanXVec[j]+=dataset.continuousX(i,j);
 						countXVec[j]+=1;
 					}
@@ -1542,6 +1543,10 @@ void initialisePReMiuM(baseGeneratorType& rndGenerator,
 	        }
 
 	}
+	if(wasError){
+		Rprintf("There is a mistake in the initialisation of PReMiuM.\n");
+	}
+
 }
 
 // Write the sampler output

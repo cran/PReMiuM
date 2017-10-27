@@ -943,7 +943,7 @@ void gibbsForMuActive(mcmcChain<pReMiuMParams>& chain,
 		gammaMat[c].setZero(nCovariates,nCovariates);
 		oneMinusGammaMat[c].setZero(nCovariates,nCovariates);
 		for(unsigned int j=0;j<nCovariates;j++){
-			gammaMat[c](j,j)=currentParams.gamma(c,j);
+			gammaMat[c](j,j)=currentParams.gamma(c,currentParams.nDiscreteCovs()+j);
 			oneMinusGammaMat[c](j,j)=1-gammaMat[c](j,j);
 		}
 	}
@@ -1028,7 +1028,7 @@ void gibbsForMuActiveNIWP(mcmcChain<pReMiuMParams>& chain,
 		gammaMat[c].setZero(nCovariates,nCovariates);
 		oneMinusGammaMat[c].setZero(nCovariates,nCovariates);
 		for(unsigned int j=0;j<nCovariates;j++){
-			gammaMat[c](j,j)=currentParams.gamma(c,j);
+			gammaMat[c](j,j)=currentParams.gamma(c,currentParams.nDiscreteCovs()+j);
 			oneMinusGammaMat[c](j,j)=1-gammaMat[c](j,j);
 		}
 	}
@@ -2107,13 +2107,7 @@ void gibbsForNuInActive(mcmcChain<pReMiuMParams>& chain,
 	mcmcState<pReMiuMParams>& currentState = chain.currentState();
 	pReMiuMParams& currentParams = currentState.parameters();
 	pReMiuMHyperParams hyperParams = currentParams.hyperParams();
-	const pReMiuMData& dataset = model.dataset();
-	unsigned int nCategoriesY=dataset.nCategoriesY();
 	const string outcomeType = model.dataset().outcomeType();
-
-
-	unsigned int nSubjects = currentParams.nSubjects();
-	unsigned int nCovariates = currentParams.nCovariates();
 
 	// Find the number of clusters
 	unsigned int maxZ = currentParams.workMaxZi();
@@ -2394,7 +2388,9 @@ void metropolisHastingsForRhoOmega(mcmcChain<pReMiuMParams>& chain,
 			currentParams.rho(j,proposedRho,covariateType,varSelectType);
 			proposedLogPost = logCondPostRhoOmegaj(currentParams,model,j);
 			double logAcceptRatio = proposedLogPost - currentLogPost;
+
 			logAcceptRatio += logPdfBeta(currentRho[j],hyperParams.aRho(),hyperParams.bRho());
+
 			if(unifRand(rndGenerator)<exp(logAcceptRatio)){
 				// Move accepted
 				if(varSelectType.compare("Continuous")==0){
@@ -2578,7 +2574,7 @@ void gibbsForNu(mcmcChain<pReMiuMParams>& chain,
 		double nu = ARSsampleNu(currentParams, model, 0,logNuPostSurvival,rndGenerator);
 		currentParams.nu(0,nu);
 	} else {
-		for (unsigned int c=0;c<maxZ;c++){
+		for (unsigned int c=0;c<=maxZ;c++){
 			double nu = ARSsampleNu(currentParams, model, c,logNuPostSurvival,rndGenerator);
 			currentParams.nu(c,nu);
 		}
@@ -2837,12 +2833,12 @@ void gibbsForZ(mcmcChain<pReMiuMParams>& chain,
 						MatrixXd Tau=MatrixXd::Zero(nNotMissing,nNotMissing);
 						unsigned int j=0;
 						for(unsigned int j0=0;j0<nCovariates;j0++){
-							if(!missingX[i][j0]){
+							if(!missingX[i][nDiscreteCovs+j0]){
 								xi(j)=currentParams.workContinuousX(i,j0);
 								muStar(j)=workMuStar(j0);
 								unsigned int r=0;
 								for(unsigned int j1=0;j1<nCovariates;j1++){
-									if(!missingX[i][j1]){
+									if(!missingX[i][nDiscreteCovs+j1]){
 										Sigma(j,r)=workSigma(j0,j1);
 										r++;
 									}
@@ -3145,7 +3141,6 @@ void updateMissingPReMiuMData(baseGeneratorType& rndGenerator,
 	unsigned int nContinuousCovs = dataset.nContinuousCovs();
 	vector<unsigned int> nCategories = params.nCategories();
 	string covariateType = options.covariateType();
-	unsigned int& nPredictSubjects=dataset.nPredictSubjects();
 
 	// Define a uniform random number generator
 	randomUniform unifRand(0,1);
@@ -3249,14 +3244,14 @@ void updateMissingPReMiuMData(baseGeneratorType& rndGenerator,
 				int zi = params.z(i);
 				VectorXd newXi=multivarNormalRand(rndGenerator,params.workMuStar(zi),params.Sigma(zi));
 				for(unsigned int j=0;j<nContinuousCovs;j++){
-					if(dataset.missingX(i,j)){
+					if(dataset.missingX(i,nDiscreteCovs+j)){
 						dataset.continuousX(i,j,newXi(j));
 						params.workContinuousX(i,j,newXi(j));
 					}else{
 						newXi(j)=dataset.continuousX(i,j);
 					}
 				}
-				double logVal = logPdfMultivarNormal(nCovariates,newXi,params.workMuStar(zi),params.workSqrtTau(zi),params.workLogDetTau(zi));
+				double logVal = logPdfMultivarNormal(nContinuousCovs,newXi,params.workMuStar(zi),params.workSqrtTau(zi),params.workLogDetTau(zi));
 				params.workLogPXiGivenZi(i,logVal);
 			}
 		}

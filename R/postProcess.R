@@ -463,6 +463,7 @@ profRegr<-function(covNames, fixedEffectsNames, outcome="outcome", outcomeT=NA, 
 		}
 		if(nFixedEffects>0){
 			wMat<-dataMatrix[,(2+nCovariates):(1+nCovariates+nFixedEffects)]
+			wMat<-as.matrix(wMat,ncol=nFixedEffects)
 		}
 	#}
 	# include response
@@ -951,7 +952,7 @@ calcAvgRiskAndProfile<-function(clusObj,includeFixedEffects=F,proportionalHazard
 						for (i in 1:length(optAlloc[[c]])){
 							for (k in 1:nCategoriesY) currLambda[i,k]<-currLambda[i,k]+
 								t(as.matrix(wMat[optAlloc[[c]][i],]))%*%
-								currBeta[,yMat[optAlloc[[c]][i]]+1]
+								as.matrix(currBeta[,yMat[optAlloc[[c]][i]]+1])
 						}	
 					} else {
 						currLambda<-currLambda+as.matrix(wMat[optAlloc[[c]],])%*%currBeta
@@ -967,17 +968,16 @@ calcAvgRiskAndProfile<-function(clusObj,includeFixedEffects=F,proportionalHazard
 					currRisk<-matrix(0,ncol=length(optAlloc[[c]]),nrow=nCategoriesY)
 					currRisk<-exp(currLambda)/rowSums(exp(currLambda))
 				}else if(yModel=="Survival"){
-					if (proportionalHazards){
+				  if (!weibullFixedShape){
+				    currNuVector<-currNu[currZ[optAlloc[[c]]]]
+				  } else {
+				    currNuVector<-nu[sweep]
+				  }
+				  if (proportionalHazards){
 						currRisk<-exp(currLambda)
 					}else{
-						if (!weibullFixedShape){
-							currNuVector<-currNu[currZ[optAlloc[[c]]]]
-						} else {
-							currNuVector<-nu[sweep]
-						}
 						currRisk<-1/((exp(currLambda))^(1/currNuVector))*gamma(1+1/currNuVector)
 					}
-
 				}
 				riskArray[sweep-firstLine+1,c,]<-apply(currRisk,2,mean)
 				thetaArray[sweep-firstLine+1,c,]<-apply(as.matrix(currTheta[currZ[optAlloc[[c]]],],ncol=nCategoriesY),2,mean)
@@ -1184,9 +1184,13 @@ calcAvgRiskAndProfile<-function(clusObj,includeFixedEffects=F,proportionalHazard
 		if(nFixedEffects>0){
 			close(betaFile)
 		}
-		if (yModel=="Survival"&&!weibullFixedShape) {
-			out$nuArray<-nuArray
-			close(nuFile)
+		if (yModel=="Survival"){
+		  if (!weibullFixedShape) {
+			  out$nuArray<-nuArray
+			  close(nuFile)
+		  } else {
+		    out$nuArray<-nu
+		  }
 		}
 	}
 	
@@ -1281,6 +1285,8 @@ plotRiskProfile<-function(riskProfObj,outFile,showRelativeRisk=F,orderBy=NULL,wh
 
 		}
 	}
+
+	if (nCovariates>15) stop("ERROR: this plotting function is suitable only for up to 15 covariates. If your dataset includes more than 15 variables, the option 'whichCovariates' allows plotting of subsets of covariates.")
 
 	png(outFile,width=1200,height=800)
 	orderProvided<-F
@@ -1405,6 +1411,13 @@ plotRiskProfile<-function(riskProfObj,outFile,showRelativeRisk=F,orderBy=NULL,wh
 	empiricals<-empiricals[meanSortIndex]
 	meanEmpirical<-sum(empiricals*clusterSizes)/sum(clusterSizes)
 
+	##############################################################
+	if(is.null(whichClusters)){
+	  whichClusters<-1:nClusters
+	}
+	nClusters<-length(whichClusters)
+	##############################################################
+	
 	if(includeResponse){
 		# Recompute the means and now also credible intervals
 		riskMeans<-apply(risk,2,mean,trim=0.005)
@@ -1418,11 +1431,17 @@ plotRiskProfile<-function(riskProfObj,outFile,showRelativeRisk=F,orderBy=NULL,wh
 		riskColor<-ifelse(riskLower>rep(riskMean,nClusters),"high",
 		ifelse(riskUpper<rep(riskMean,nClusters),"low","avg"))
 		if (yModel=="Categorical"){		
-			riskDF<-data.frame("risk"=c(),"category"=c(),"cluster"=c(),"meanRisk"=c(),
-				"lowerRisk"=c(),"upperRisk"=c(),"fillColor"=c())
+			# riskDF<-data.frame("risk"=c(),"category"=c(),"cluster"=c(),"meanRisk"=c(),
+			# 	"lowerRisk"=c(),"upperRisk"=c(),"fillColor"=c())
+			##############################################################
+			my.list <- vector('list', length(whichClusters)*nCategoriesY)
+			##############################################################
 		} else {
-			riskDF<-data.frame("risk"=c(),"cluster"=c(),"meanRisk"=c(),
-				"lowerRisk"=c(),"upperRisk"=c(),"fillColor"=c())
+			# riskDF<-data.frame("risk"=c(),"cluster"=c(),"meanRisk"=c(),
+			# 	"lowerRisk"=c(),"upperRisk"=c(),"fillColor"=c())
+		  ##############################################################
+		  my.list <- vector('list', length(whichClusters))
+		  ##############################################################
 		}
 		if (yModel=="Survival"&&!weibullFixedShape){
 			# Recompute the means and now also credible intervals
@@ -1431,8 +1450,11 @@ plotRiskProfile<-function(riskProfObj,outFile,showRelativeRisk=F,orderBy=NULL,wh
 			nuLower<-apply(nuArray,2,quantile,0.05)
 			nuUpper<-apply(nuArray,2,quantile,0.95)
 
-			nuDF<-data.frame("nu"=c(),"cluster"=c(),"meanNu"=c(),
-				"lowerNu"=c(),"upperNu"=c(),"fillColor"=c())
+			# nuDF<-data.frame("nu"=c(),"cluster"=c(),"meanNu"=c(),
+			# 	"lowerNu"=c(),"upperNu"=c(),"fillColor"=c())
+			##############################################################
+			# my.list.nu <- vector('list', length(whichClusters))
+			##############################################################
 		}
 
 	}else{
@@ -1441,13 +1463,23 @@ plotRiskProfile<-function(riskProfObj,outFile,showRelativeRisk=F,orderBy=NULL,wh
 	}
 
 
-	if(is.null(whichClusters)){
-		whichClusters<-1:nClusters
-	}
-	nClusters<-length(whichClusters)
+	# if(is.null(whichClusters)){
+	# 	whichClusters<-1:nClusters
+	# }
+	# nClusters<-length(whichClusters)
 	
-	empiricalDF<-data.frame("empiricals"=c(),"meanEmpirical"=c(),"cluster"=c(),"fillColor"=c())
-	sizeDF<-data.frame("clusterSize"=c(),"cluster"=c(),"fillColor"=c())
+	# empiricalDF<-data.frame("empiricals"=c(),"meanEmpirical"=c(),"cluster"=c(),"fillColor"=c())
+	# sizeDF<-data.frame("clusterSize"=c(),"cluster"=c(),"fillColor"=c())
+	
+	##############################################################
+	my.list.nu <- vector('list', length(whichClusters))
+	
+	my.list.empirical <- vector('list', length(whichClusters))
+	my.list.size <- vector('list', length(whichClusters))
+
+
+	z=1; z.nu=1; z.other=1		
+	#################################################################
 	
 	# Restructure the data for plotting
 	for(c in whichClusters){
@@ -1456,45 +1488,103 @@ plotRiskProfile<-function(riskProfObj,outFile,showRelativeRisk=F,orderBy=NULL,wh
 				plotRisk<-risk[,c,]
 				nPoints<-dim(plotRisk)[1]
 				for (k in 1:nCategoriesY){				
-					riskDF<-rbind(riskDF,data.frame("risk"=plotRisk[,k],
-						"category"=rep(k,nPoints),
-						"cluster"=rep(c,nPoints),
-						"meanRisk"=rep(riskMean,nPoints),
-						"lowerRisk"=rep(riskLower[c],nPoints),
-						"upperRisk"=rep(riskUpper[c],nPoints),
-						"fillColor"=rep(riskColor[c],nPoints)))
+					# riskDF<-rbind(riskDF,data.frame("risk"=plotRisk[,k],
+					# 	"category"=rep(k,nPoints),
+					# 	"cluster"=rep(c,nPoints),
+					# 	"meanRisk"=rep(riskMean,nPoints),
+					# 	"lowerRisk"=rep(riskLower[c],nPoints),
+					# 	"upperRisk"=rep(riskUpper[c],nPoints),
+					# 	"fillColor"=rep(riskColor[c],nPoints)))
+					
+					#################################################################
+					my.list[[z]] <- data.frame("risk"=plotRisk[,k],
+					                           "category"=rep(k,nPoints),
+					                           "cluster"=rep(c,nPoints),
+					                           "meanRisk"=rep(riskMean,nPoints),
+					                           "lowerRisk"=rep(riskLower[c],nPoints),
+					                           "upperRisk"=rep(riskUpper[c],nPoints),
+					                           "fillColor"=rep(riskColor[c],nPoints))
+					z=z+1
+					#################################################################	
+					
 				}
 			} else {
 				plotRisk<-risk[,c,]
 				plotRisk<-plotRisk[plotRisk<plotMax]
 				nPoints<-length(plotRisk)
-				riskDF<-rbind(riskDF,data.frame("risk"=plotRisk,"cluster"=rep(c,nPoints),
-					"meanRisk"=rep(riskMean,nPoints),
-					"lowerRisk"=rep(riskLower[c],nPoints),
-					"upperRisk"=rep(riskUpper[c],nPoints),
-					"fillColor"=rep(riskColor[c],nPoints)))
+				# riskDF<-rbind(riskDF,data.frame("risk"=plotRisk,"cluster"=rep(c,nPoints),
+				# 	"meanRisk"=rep(riskMean,nPoints),
+				# 	"lowerRisk"=rep(riskLower[c],nPoints),
+				# 	"upperRisk"=rep(riskUpper[c],nPoints),
+				# 	"fillColor"=rep(riskColor[c],nPoints)))
+				
+				#################################################################
+				my.list[[z]] <- data.frame("risk"=plotRisk,"cluster"=rep(c,nPoints),
+				                           "meanRisk"=rep(riskMean,nPoints),
+				                           "lowerRisk"=rep(riskLower[c],nPoints),
+				                           "upperRisk"=rep(riskUpper[c],nPoints),
+				                           "fillColor"=rep(riskColor[c],nPoints))
+				z=z+1
+				#################################################################
 			}
 			if (yModel=="Survival"&&!weibullFixedShape){
 				plotNu<-nuArray[,c]
 				nPoints<-length(plotNu)
-				nuDF<-rbind(nuDF,data.frame("nu"=plotNu,"cluster"=rep(c,nPoints),
-					"meanNu"=rep(nuMean,nPoints),
-					"lowerNu"=rep(nuLower[c],nPoints),
-					"upperNu"=rep(nuUpper[c],nPoints),
-					"fillColor"=rep(riskColor[c],nPoints)))
+				# nuDF<-rbind(nuDF,data.frame("nu"=plotNu,"cluster"=rep(c,nPoints),
+				# 	"meanNu"=rep(nuMean,nPoints),
+				# 	"lowerNu"=rep(nuLower[c],nPoints),
+				# 	"upperNu"=rep(nuUpper[c],nPoints),
+				# 	"fillColor"=rep(riskColor[c],nPoints)))
+				
+				#################################################################
+				my.list.nu[[z.nu]] <- data.frame("nu"=plotNu,"cluster"=rep(c,nPoints),
+				                           "meanNu"=rep(nuMean,nPoints),
+				                           "lowerNu"=rep(nuLower[c],nPoints),
+				                           "upperNu"=rep(nuUpper[c],nPoints),
+				                           "fillColor"=rep(riskColor[c],nPoints))
+				z.nu=z.nu+1
+				#################################################################	
+				
 			}
 		}
-		empiricalDF<-rbind(empiricalDF,
-			data.frame("empiricals"=empiricals[c],
-			"meanEmpirical"=meanEmpirical,"cluster"=c,"fillColor"=riskColor[c]))
-		sizeDF<-rbind(sizeDF,
-			data.frame("clusterSize"=clusterSizes[c],"cluster"=c,"fillColor"=riskColor[c]))
+		# empiricalDF<-rbind(empiricalDF,
+		# 	data.frame("empiricals"=empiricals[c],
+		# 	"meanEmpirical"=meanEmpirical,"cluster"=c,"fillColor"=riskColor[c]))
+		# sizeDF<-rbind(sizeDF,
+		# 	data.frame("clusterSize"=clusterSizes[c],"cluster"=c,"fillColor"=riskColor[c]))
+		
+		#################################################################
+		my.list.empirical[[z.other]] <- data.frame("empiricals"=empiricals[c],
+		                           "meanEmpirical"=meanEmpirical,"cluster"=c,"fillColor"=riskColor[c])
+		my.list.size[[z.other]] <- data.frame("clusterSize"=clusterSizes[c],"cluster"=c,"fillColor"=riskColor[c])
+		z.other=z.other+1
+		#################################################################	
+		
 	}
+
+	#################################################################
+	if(includeResponse){
+
+	riskDF <- do.call('rbind', my.list)
+	
+	nuDF <- do.call('rbind', my.list.nu)
+	
+	empiricalDF <- do.call('rbind', my.list.empirical)
+	
+	}
+	
+	sizeDF <- do.call('rbind', my.list.size)
+
+	#################################################################
 
 	if(includeResponse){
 		if(yModel=='Categorical'){
-			riskDF<-data.frame("prob"=c(),"cluster"=c(),"category"=c(),"meanProb"=c(),
-				"lowerProb"=c(),"upperProb"=c(),"fillColor"=c())
+			# riskDF<-data.frame("prob"=c(),"cluster"=c(),"category"=c(),"meanProb"=c(),
+			# 	"lowerProb"=c(),"upperProb"=c(),"fillColor"=c())
+			##############################################################
+			my.list <- vector('list', length(whichClusters)*nCategoriesY)
+			z=1
+			##############################################################
 			for(k in 1:nCategoriesY){
 		
 				probMat<-risk[,,k]
@@ -1509,20 +1599,35 @@ plotRiskProfile<-function(riskProfObj,outFile,showRelativeRisk=F,orderBy=NULL,wh
 				ifelse(probUpper<rep(probMean,length(probUpper)),"low","avg"))
 
 				for(c in whichClusters){
-					riskDF<-rbind(riskDF,data.frame("prob"=probMat[,c],"cluster"=rep(c,nPoints),
-						"category"=rep(k-1,nPoints),
-						"meanProb"=rep(probMean,nPoints),
-						"lowerProb"=rep(probLower[c],nPoints),
-						"upperProb"=rep(probUpper[c],nPoints),
-						"fillColor"=rep(probColor[c],nPoints)))
-						 rownames(riskDF)<-seq(1,nrow(riskDF),1)
+					# riskDF<-rbind(riskDF,data.frame("prob"=probMat[,c],"cluster"=rep(c,nPoints),
+					# 	"category"=rep(k-1,nPoints),
+					# 	"meanProb"=rep(probMean,nPoints),
+					# 	"lowerProb"=rep(probLower[c],nPoints),
+					# 	"upperProb"=rep(probUpper[c],nPoints),
+					# 	"fillColor"=rep(probColor[c],nPoints)))
+					# 	 rownames(riskDF)<-seq(1,nrow(riskDF),1)
+						 
+						 #################################################################
+						 my.list[[z]] <- data.frame("prob"=probMat[,c],"cluster"=rep(c,nPoints),
+						                            "category"=rep(k-1,nPoints),
+						                            "meanProb"=rep(probMean,nPoints),
+						                            "lowerProb"=rep(probLower[c],nPoints),
+						                            "upperProb"=rep(probUpper[c],nPoints),
+						                            "fillColor"=rep(probColor[c],nPoints))
+						 z=z+1
+						 #################################################################
 				
 				}
 			}
+			
+			#################################################################
+			riskDF <- do.call('rbind', my.list)
+			rownames(riskDF)<-seq(1,nrow(riskDF),1)
+			#################################################################
 
 			plotObj<-ggplot(riskDF)
 			plotObj<-plotObj+facet_wrap(~category,ncol=1,as.table=F,scales="free_y")
-			plotObj<-plotObj+geom_hline(aes(x=as.factor(cluster),y=prob,yintercept=meanProb))
+			plotObj<-plotObj+geom_hline(aes(yintercept=meanProb))
 			plotObj<-plotObj+geom_boxplot(aes(x=as.factor(cluster),y=prob,fill=as.factor(fillColor)),outlier.size=0.5)
 			plotObj<-plotObj+geom_point(aes(x=as.factor(cluster),y=lowerProb,colour=as.factor(fillColor)),size=1.5)
 			plotObj<-plotObj+geom_point(aes(x=as.factor(cluster),y=upperProb,colour=as.factor(fillColor)),size=1.5)
@@ -1577,7 +1682,7 @@ plotRiskProfile<-function(riskProfObj,outFile,showRelativeRisk=F,orderBy=NULL,wh
 
 			# Create the risk plot
 			plotObj<-ggplot(riskDF)
-			plotObj<-plotObj+geom_hline(aes(x=as.factor(cluster),y=risk,yintercept=meanRisk))
+			plotObj<-plotObj+geom_hline(aes(yintercept=meanRisk))
 			plotObj<-plotObj+geom_boxplot(aes(x=as.factor(cluster),y=risk,fill=as.factor(fillColor)),outlier.size=0.5)
 			if (!is.null(riskLim)) plotObj<-plotObj+coord_cartesian(ylim = riskLim)
 			plotObj<-plotObj+geom_point(aes(x=as.factor(cluster),y=lowerRisk,colour=as.factor(fillColor)),size=1.5)
@@ -1600,7 +1705,7 @@ plotRiskProfile<-function(riskProfObj,outFile,showRelativeRisk=F,orderBy=NULL,wh
 		if(yModel!="Categorical"){
 			plotObj<-ggplot(empiricalDF)
 			plotObj<-plotObj+geom_point(aes(x=as.factor(cluster),y=empiricals,colour=as.factor(fillColor)),size=3)
-			plotObj<-plotObj+geom_hline(aes(x=as.factor(cluster),y=empiricals,yintercept=meanEmpirical))
+			plotObj<-plotObj+geom_hline(aes(yintercept=meanEmpirical))
 			plotObj<-plotObj+scale_colour_manual(values = c(high ="#CC0033",low ="#0066CC", avg ="#33CC66"))+
 				theme(legend.position="none")
 			plotObj<-plotObj+labs(title='Empirical Data',plot.title=element_text(size=10))
@@ -1628,8 +1733,12 @@ plotRiskProfile<-function(riskProfObj,outFile,showRelativeRisk=F,orderBy=NULL,wh
 	# Loop over the covariates
 	for(j in 1:nCovariates){
 		if(xModel=='Discrete'){
-			profileDF<-data.frame("prob"=c(),"cluster"=c(),"category"=c(),"meanProb"=c(),
-				"lowerProb"=c(),"upperProb"=c(),"fillColor"=c())
+			# profileDF<-data.frame("prob"=c(),"cluster"=c(),"category"=c(),"meanProb"=c(),
+			# 	"lowerProb"=c(),"upperProb"=c(),"fillColor"=c())
+			#################################################################
+			my.list <- vector('list', length(whichClusters)*nCategories[j])
+			z=1		
+			#################################################################
 			for(k in 1:nCategories[j]){
 				probMat<-profile[,meanSortIndex,j,k]
 				nPoints<-nrow(probMat)
@@ -1644,20 +1753,34 @@ plotRiskProfile<-function(riskProfObj,outFile,showRelativeRisk=F,orderBy=NULL,wh
 			
 	
 				for(c in whichClusters){
-					profileDF<-rbind(profileDF,data.frame("prob"=probMat[,c],"cluster"=rep(c,nPoints),
-						"category"=rep(k-1,nPoints),
-						"meanProb"=rep(probMean,nPoints),
-						"lowerProb"=rep(probLower[c],nPoints),
-						"upperProb"=rep(probUpper[c],nPoints),
-						"fillColor"=rep(probColor[c],nPoints)))
-						 rownames(profileDF)<-seq(1,nrow(profileDF),1)
+					# profileDF<-rbind(profileDF,data.frame("prob"=probMat[,c],"cluster"=rep(c,nPoints),
+					# 	"category"=rep(k-1,nPoints),
+					# 	"meanProb"=rep(probMean,nPoints),
+					# 	"lowerProb"=rep(probLower[c],nPoints),
+					# 	"upperProb"=rep(probUpper[c],nPoints),
+					# 	"fillColor"=rep(probColor[c],nPoints)))
+					# 	 rownames(profileDF)<-seq(1,nrow(profileDF),1)
+						 #################################################################
+						 my.list[[z]] <- data.frame("prob"=probMat[,c],"cluster"=rep(c,nPoints),
+						                            "category"=rep(k-1,nPoints),
+						                            "meanProb"=rep(probMean,nPoints),
+						                            "lowerProb"=rep(probLower[c],nPoints),
+						                            "upperProb"=rep(probUpper[c],nPoints),
+						                            "fillColor"=rep(probColor[c],nPoints))
+						 z=z+1
+						 #################################################################
 				
 				}
 			}
+			#################################################################
+			profileDF <- do.call('rbind', my.list)
+			rownames(profileDF)<-seq(1,nrow(profileDF),1)
+			
+			#################################################################
 		
 			plotObj<-ggplot(profileDF)
 			plotObj<-plotObj+facet_wrap(~category,ncol=1,as.table=F,scales="free_y")
-			plotObj<-plotObj+geom_hline(aes(x=as.factor(cluster),y=prob,yintercept=meanProb))
+			plotObj<-plotObj+geom_hline(aes(yintercept=meanProb))
 			plotObj<-plotObj+geom_boxplot(aes(x=as.factor(cluster),y=prob,fill=as.factor(fillColor)),outlier.size=0.5)
 			plotObj<-plotObj+geom_point(aes(x=as.factor(cluster),y=lowerProb,colour=as.factor(fillColor)),size=1.5)
 			plotObj<-plotObj+geom_point(aes(x=as.factor(cluster),y=upperProb,colour=as.factor(fillColor)),size=1.5)
@@ -1677,8 +1800,12 @@ plotRiskProfile<-function(riskProfObj,outFile,showRelativeRisk=F,orderBy=NULL,wh
 			print(plotObj,vp=viewport(layout.pos.row=1:6,layout.pos.col=j+2))
 		}else if(xModel=='Normal'){
 			# Plot the means
-			profileDF<-data.frame("mu"=c(),"cluster"=c(),"muMean"=c(),
-				"lowerMu"=c(),"upperMu"=c(),"fillColor"=c())
+			# profileDF<-data.frame("mu"=c(),"cluster"=c(),"muMean"=c(),
+			# 	"lowerMu"=c(),"upperMu"=c(),"fillColor"=c())
+			#################################################################
+			my.list <- vector('list', length(whichClusters))
+			z=1		
+			#################################################################
 			muMat<-profile[,meanSortIndex,j]
 			muMeans<-apply(muMat,2,mean)
 			muMean<-sum(muMeans*clusterSizes)/sum(clusterSizes)
@@ -1695,17 +1822,27 @@ plotRiskProfile<-function(riskProfObj,outFile,showRelativeRisk=F,orderBy=NULL,wh
 				plotMu<-muMat[,c]
 				plotMu<-plotMu[plotMu<plotMax&plotMu>plotMin]
 				nPoints<-length(plotMu)
-				profileDF<-rbind(profileDF,data.frame("mu"=plotMu,"cluster"=rep(c,nPoints),
-					"meanMu"=rep(muMean,nPoints),
-					"lowerMu"=rep(muLower[c],nPoints),
-					"upperMu"=rep(muUpper[c],nPoints),
-					"fillColor"=rep(muColor[c],nPoints)))
+				# profileDF<-rbind(profileDF,data.frame("mu"=plotMu,"cluster"=rep(c,nPoints),
+				# 	"meanMu"=rep(muMean,nPoints),
+				# 	"lowerMu"=rep(muLower[c],nPoints),
+				# 	"upperMu"=rep(muUpper[c],nPoints),
+				# 	"fillColor"=rep(muColor[c],nPoints)))
+				#################################################################
+				my.list[[z]] <- data.frame("mu"=plotMu,"cluster"=rep(c,nPoints),
+				                           "meanMu"=rep(muMean,nPoints),
+				                           "lowerMu"=rep(muLower[c],nPoints),
+				                           "upperMu"=rep(muUpper[c],nPoints),
+				                           "fillColor"=rep(muColor[c],nPoints))
+				z=z+1
+				#################################################################	
 			}
-
+			#################################################################
+			profileDF <- do.call('rbind', my.list)
 			rownames(profileDF)<-seq(1,nrow(profileDF),1)
+			#################################################################
 			
 			plotObj<-ggplot(profileDF)
-			plotObj<-plotObj+geom_hline(aes(x=as.factor(cluster),y=mu,yintercept=meanMu))
+			plotObj<-plotObj+geom_hline(aes(yintercept=meanMu))
 			plotObj<-plotObj+geom_boxplot(aes(x=as.factor(cluster),y=mu,fill=as.factor(fillColor)),outlier.size=0.5)
 			plotObj<-plotObj+geom_point(aes(x=as.factor(cluster),y=lowerMu,colour=as.factor(fillColor)),size=1.5)
 			plotObj<-plotObj+geom_point(aes(x=as.factor(cluster),y=upperMu,colour=as.factor(fillColor)),size=1.5)
@@ -1726,8 +1863,12 @@ plotRiskProfile<-function(riskProfObj,outFile,showRelativeRisk=F,orderBy=NULL,wh
 			print(plotObj,vp=viewport(layout.pos.row=1:3,layout.pos.col=j+2))
 		
 			# Plot the variances
-			profileDF<-data.frame("sigma"=c(),"cluster"=c(),"sigmaMean"=c(),
-				"lowerSigma"=c(),"upperSigma"=c(),"fillColor"=c())
+			# profileDF<-data.frame("sigma"=c(),"cluster"=c(),"sigmaMean"=c(),
+			# 	"lowerSigma"=c(),"upperSigma"=c(),"fillColor"=c())
+			#################################################################
+			my.list <- vector('list', length(whichClusters))
+			z=1		
+			#################################################################
 			sigmaMat<-profileStdDev[,meanSortIndex,j,j]
 			sigmaMeans<-apply(sigmaMat,2,mean)
 			sigmaMean<-sum(sigmaMeans*clusterSizes)/sum(clusterSizes)
@@ -1743,16 +1884,28 @@ plotRiskProfile<-function(riskProfObj,outFile,showRelativeRisk=F,orderBy=NULL,wh
 				plotSigma<-sigmaMat[,c]
 				plotSigma<-plotSigma[plotSigma<plotMax]
 				nPoints<-length(plotSigma)
-				profileDF<-rbind(profileDF,data.frame("sigma"=plotSigma,"cluster"=rep(c,nPoints),
-					"meanSigma"=rep(sigmaMean,nPoints),
-					"lowerSigma"=rep(sigmaLower[c],nPoints),
-					"upperSigma"=rep(sigmaUpper[c],nPoints),
-					"fillColor"=rep(sigmaColor[c],nPoints)))
+				# profileDF<-rbind(profileDF,data.frame("sigma"=plotSigma,"cluster"=rep(c,nPoints),
+				# 	"meanSigma"=rep(sigmaMean,nPoints),
+				# 	"lowerSigma"=rep(sigmaLower[c],nPoints),
+				# 	"upperSigma"=rep(sigmaUpper[c],nPoints),
+				# 	"fillColor"=rep(sigmaColor[c],nPoints)))
+				#################################################################
+				my.list[[z]] <- data.frame("sigma"=plotSigma,"cluster"=rep(c,nPoints),
+				                           "meanSigma"=rep(sigmaMean,nPoints),
+				                           "lowerSigma"=rep(sigmaLower[c],nPoints),
+				                           "upperSigma"=rep(sigmaUpper[c],nPoints),
+				                           "fillColor"=rep(sigmaColor[c],nPoints))
+				z=z+1
+				#################################################################	
+				
 			}
+			#################################################################
+			profileDF <- do.call('rbind', my.list)
 			rownames(profileDF)<-seq(1,nrow(profileDF),1)
+			#################################################################
 
 			plotObj<-ggplot(profileDF)
-			plotObj<-plotObj+geom_hline(aes(x=as.factor(cluster),y=sigma,yintercept=meanSigma))
+			plotObj<-plotObj+geom_hline(aes(yintercept=meanSigma))
 			plotObj<-plotObj+geom_boxplot(aes(x=as.factor(cluster),y=sigma,fill=as.factor(fillColor)),outlier.size=0.5)
 			plotObj<-plotObj+geom_point(aes(x=as.factor(cluster),y=lowerSigma,colour=as.factor(fillColor)),size=1.5)
 			plotObj<-plotObj+geom_point(aes(x=as.factor(cluster),y=upperSigma,colour=as.factor(fillColor)),size=1.5)
@@ -1772,8 +1925,14 @@ plotRiskProfile<-function(riskProfObj,outFile,showRelativeRisk=F,orderBy=NULL,wh
 			print(plotObj,vp=viewport(layout.pos.row=4:6,layout.pos.col=j+2))
 		}else if(xModel=='Mixed'){
 			if (j<=nDiscreteCovs){
-			profileDF<-data.frame("prob"=c(),"cluster"=c(),"category"=c(),"meanProb"=c(),
-				"lowerProb"=c(),"upperProb"=c(),"fillColor"=c())
+			# profileDF<-data.frame("prob"=c(),"cluster"=c(),"category"=c(),"meanProb"=c(),
+			# 	"lowerProb"=c(),"upperProb"=c(),"fillColor"=c())
+			
+			#################################################################
+			my.list <- vector('list', length(whichClusters)*nCategories[j])
+			z=1		
+			#################################################################
+			
 			for(k in 1:nCategories[j]){
 				if (nDiscreteCovs==1) {
 					probMat<-profilePhi[,meanSortIndex,1,k]
@@ -1789,23 +1948,42 @@ plotRiskProfile<-function(riskProfObj,outFile,showRelativeRisk=F,orderBy=NULL,wh
 				# Get the plot colors
 				probColor<-ifelse(probLower>rep(probMean,length(probLower)),"high",
 				ifelse(probUpper<rep(probMean,length(probUpper)),"low","avg"))
-			
+
+	
 	
 				for(c in whichClusters){
-					profileDF<-rbind(profileDF,data.frame("prob"=probMat[,c],"cluster"=rep(c,nPoints),
-						"category"=rep(k-1,nPoints),
-						"meanProb"=rep(probMean,nPoints),
-						"lowerProb"=rep(probLower[c],nPoints),
-						"upperProb"=rep(probUpper[c],nPoints),
-						"fillColor"=rep(probColor[c],nPoints)))
-						 rownames(profileDF)<-seq(1,nrow(profileDF),1)
-				
+					# profileDF<-rbind(profileDF,data.frame("prob"=probMat[,c],"cluster"=rep(c,nPoints),
+					# 	"category"=rep(k-1,nPoints),
+					# 	"meanProb"=rep(probMean,nPoints),
+					# 	"lowerProb"=rep(probLower[c],nPoints),
+					# 	"upperProb"=rep(probUpper[c],nPoints),
+					# 	"fillColor"=rep(probColor[c],nPoints)))
+					# 	 rownames(profileDF)<-seq(1,nrow(profileDF),1)
+				  
+				  #################################################################
+				  my.list[[z]] <- data.frame("prob"=probMat[,c],"cluster"=rep(c,nPoints),
+				                             "category"=rep(k-1,nPoints),
+				                             "meanProb"=rep(probMean,nPoints),
+				                             "lowerProb"=rep(probLower[c],nPoints),
+				                             "upperProb"=rep(probUpper[c],nPoints),
+				                             "fillColor"=rep(probColor[c],nPoints))
+				  z=z+1
+				  #################################################################
 				}
 			}
+			
+			#################################################################
+			profileDF <- do.call('rbind', my.list)
+			rownames(profileDF)<-seq(1,nrow(profileDF),1)
+			
+			#print(str(profileDF))
+			#print(head(profileDF))
+			#################################################################
+			
 		
 			plotObj<-ggplot(profileDF)
 			plotObj<-plotObj+facet_wrap(~category,ncol=1,as.table=F,scales="free_y")
-			plotObj<-plotObj+geom_hline(aes(x=as.factor(cluster),y=prob,yintercept=meanProb))
+			plotObj<-plotObj+geom_hline(aes(yintercept=meanProb))
 			plotObj<-plotObj+geom_boxplot(aes(x=as.factor(cluster),y=prob,fill=as.factor(fillColor)),outlier.size=0.5)
 			plotObj<-plotObj+geom_point(aes(x=as.factor(cluster),y=lowerProb,colour=as.factor(fillColor)),size=1.5)
 			plotObj<-plotObj+geom_point(aes(x=as.factor(cluster),y=upperProb,colour=as.factor(fillColor)),size=1.5)
@@ -1825,8 +2003,12 @@ plotRiskProfile<-function(riskProfObj,outFile,showRelativeRisk=F,orderBy=NULL,wh
 			print(plotObj,vp=viewport(layout.pos.row=1:6,layout.pos.col=j+2))
 			} else {			
 			# Plot the means
-			profileDF<-data.frame("mu"=c(),"cluster"=c(),"muMean"=c(),
-				"lowerMu"=c(),"upperMu"=c(),"fillColor"=c())
+			# profileDF<-data.frame("mu"=c(),"cluster"=c(),"muMean"=c(),
+			# 	"lowerMu"=c(),"upperMu"=c(),"fillColor"=c())
+			#################################################################
+			my.list <- vector('list', length(whichClusters))
+			z=1		
+			#################################################################
 			if (nContinuousCovs==1){
 				muMat<-profileMu[,meanSortIndex,1]
 			} else {
@@ -1847,16 +2029,31 @@ plotRiskProfile<-function(riskProfObj,outFile,showRelativeRisk=F,orderBy=NULL,wh
 				plotMu<-muMat[,c]
 				plotMu<-plotMu[plotMu<plotMax&plotMu>plotMin]
 				nPoints<-length(plotMu)
-				profileDF<-rbind(profileDF,data.frame("mu"=plotMu,"cluster"=rep(c,nPoints),
-					"meanMu"=rep(muMean,nPoints),
-					"lowerMu"=rep(muLower[c],nPoints),
-					"upperMu"=rep(muUpper[c],nPoints),
-					"fillColor"=rep(muColor[c],nPoints)))
+				# profileDF<-rbind(profileDF,data.frame("mu"=plotMu,"cluster"=rep(c,nPoints),
+				# 	"meanMu"=rep(muMean,nPoints),
+				# 	"lowerMu"=rep(muLower[c],nPoints),
+				# 	"upperMu"=rep(muUpper[c],nPoints),
+				# 	"fillColor"=rep(muColor[c],nPoints)))
+				#################################################################
+				my.list[[z]] <- data.frame("mu"=plotMu,"cluster"=rep(c,nPoints),
+				                           "meanMu"=rep(muMean,nPoints),
+				                           "lowerMu"=rep(muLower[c],nPoints),
+				                           "upperMu"=rep(muUpper[c],nPoints),
+				                           "fillColor"=rep(muColor[c],nPoints))
+				z=z+1
+				#################################################################	
+				
 			}
+			#rownames(profileDF)<-seq(1,nrow(profileDF),1)
+			#################################################################
+			profileDF <- do.call('rbind', my.list)
 			rownames(profileDF)<-seq(1,nrow(profileDF),1)
 			
+			#print(str(profileDF))
+			#print(head(profileDF))
+			#################################################################
 			plotObj<-ggplot(profileDF)
-			plotObj<-plotObj+geom_hline(aes(x=as.factor(cluster),y=mu,yintercept=meanMu))
+			plotObj<-plotObj+geom_hline(aes(yintercept=meanMu))
 			plotObj<-plotObj+geom_boxplot(aes(x=as.factor(cluster),y=mu,fill=as.factor(fillColor)),outlier.size=0.5)
 			plotObj<-plotObj+geom_point(aes(x=as.factor(cluster),y=lowerMu,colour=as.factor(fillColor)),size=1.5)
 			plotObj<-plotObj+geom_point(aes(x=as.factor(cluster),y=upperMu,colour=as.factor(fillColor)),size=1.5)
@@ -1877,8 +2074,12 @@ plotRiskProfile<-function(riskProfObj,outFile,showRelativeRisk=F,orderBy=NULL,wh
 			print(plotObj,vp=viewport(layout.pos.row=1:3,layout.pos.col=j+2))
 		
 			# Plot the variances
-			profileDF<-data.frame("sigma"=c(),"cluster"=c(),"sigmaMean"=c(),
-				"lowerSigma"=c(),"upperSigma"=c(),"fillColor"=c())
+			# profileDF<-data.frame("sigma"=c(),"cluster"=c(),"sigmaMean"=c(),
+			# 	"lowerSigma"=c(),"upperSigma"=c(),"fillColor"=c())
+			#################################################################
+			my.list <- vector('list', length(whichClusters))
+			z=1		
+			#################################################################
 			if (nContinuousCovs==1){
 				sigmaMat<-profileStdDev[,meanSortIndex,1,1]
 			} else {
@@ -1898,15 +2099,31 @@ plotRiskProfile<-function(riskProfObj,outFile,showRelativeRisk=F,orderBy=NULL,wh
 				plotSigma<-sigmaMat[,c]
 				plotSigma<-plotSigma[plotSigma<plotMax]
 				nPoints<-length(plotSigma)
-				profileDF<-rbind(profileDF,data.frame("sigma"=plotSigma,"cluster"=rep(c,nPoints),
-					"meanSigma"=rep(sigmaMean,nPoints),
-					"lowerSigma"=rep(sigmaLower[c],nPoints),
-					"upperSigma"=rep(sigmaUpper[c],nPoints),
-					"fillColor"=rep(sigmaColor[c],nPoints)))
+				# profileDF<-rbind(profileDF,data.frame("sigma"=plotSigma,"cluster"=rep(c,nPoints),
+				# 	"meanSigma"=rep(sigmaMean,nPoints),
+				# 	"lowerSigma"=rep(sigmaLower[c],nPoints),
+				# 	"upperSigma"=rep(sigmaUpper[c],nPoints),
+				# 	"fillColor"=rep(sigmaColor[c],nPoints)))
+				#################################################################
+				my.list[[z]] <- data.frame("sigma"=plotSigma,"cluster"=rep(c,nPoints),
+				                           "meanSigma"=rep(sigmaMean,nPoints),
+				                           "lowerSigma"=rep(sigmaLower[c],nPoints),
+				                           "upperSigma"=rep(sigmaUpper[c],nPoints),
+				                           "fillColor"=rep(sigmaColor[c],nPoints))
+				z=z+1
+				#################################################################	
 			}
+			# rownames(profileDF)<-seq(1,nrow(profileDF),1)
+			#################################################################
+			profileDF <- do.call('rbind', my.list)
 			rownames(profileDF)<-seq(1,nrow(profileDF),1)
+			
+			#print(str(profileDF))
+			#print(head(profileDF))
+			#################################################################
+			
 			plotObj<-ggplot(profileDF)
-			plotObj<-plotObj+geom_hline(aes(x=as.factor(cluster),y=sigma,yintercept=meanSigma))
+			plotObj<-plotObj+geom_hline(aes(yintercept=meanSigma))
 			plotObj<-plotObj+geom_boxplot(aes(x=as.factor(cluster),y=sigma,fill=as.factor(fillColor)),outlier.size=0.5)
 			plotObj<-plotObj+geom_point(aes(x=as.factor(cluster),y=lowerSigma,colour=as.factor(fillColor)),size=1.5)
 			plotObj<-plotObj+geom_point(aes(x=as.factor(cluster),y=upperSigma,colour=as.factor(fillColor)),size=1.5)
@@ -1931,10 +2148,14 @@ plotRiskProfile<-function(riskProfObj,outFile,showRelativeRisk=F,orderBy=NULL,wh
 	dev.off()
 	return(meanSortIndex)
 }
+
+
+
 	
 
 # Calculate predictions, and if possible assess predictive performance
-calcPredictions<-function(riskProfObj,predictResponseFileName=NULL, doRaoBlackwell=F, fullSweepPredictions=F,fullSweepLogOR=F,fullSweepHazardRatio=F){
+calcPredictions<-function(riskProfObj,predictResponseFileName=NULL, doRaoBlackwell=F,
+			fullSweepPredictions=F,fullSweepLogOR=F,fullSweepHazardRatio=F,referenceClusterOR=NA){
 
 	riskProfClusObj=NULL
 	clusObjRunInfoObj=NULL
@@ -1951,6 +2172,7 @@ calcPredictions<-function(riskProfObj,predictResponseFileName=NULL, doRaoBlackwe
 	nCategoriesY=NULL
 	nSubjects=NULL
 	weibullFixedShape=NULL
+	risk=NULL
 	
 	for (i in 1:length(riskProfObj)) assign(names(riskProfObj)[i],riskProfObj[[i]])
 	for (i in 1:length(riskProfClusObj)) assign(names(riskProfClusObj)[i],riskProfClusObj[[i]])
@@ -1987,7 +2209,7 @@ calcPredictions<-function(riskProfObj,predictResponseFileName=NULL, doRaoBlackwe
 	if(nPredictSubjects==0){
 		stop("No prediction subjects processed by C++\n")
 	}
-	
+
 	# Get the response and fixed effects data if available
 	responseProvided<-F
 	extraInfoProvided<-F # extra info is denominator for binomial and poisson
@@ -2041,18 +2263,18 @@ calcPredictions<-function(riskProfObj,predictResponseFileName=NULL, doRaoBlackwe
 
 	if (yModel=="Survival"){
 		if (weibullFixedShape){
-			nuFileName<-file.path(directoryPath,paste(fileStem,'_nu.txt',sep=''))
-			nuFile<-file(nuFileName,open="r")
-			nu<-mean(read.table(nuFile)[,1])
-			close(nuFile)
+		  nuFileName<-file.path(directoryPath,paste(fileStem,'_nu.txt',sep=''))
+		  nuFile<-file(nuFileName,open="r")
+		  nu<-mean(read.table(nuFile)[,1])
+		  close(nuFile)
 		}
 	} 
 
 	# Already done the allocation in the C++
 	if(doRaoBlackwell){
 		# Construct the RB theta file name
-		thetaFileName<-file.path(directoryPath,paste(fileStem,'_predictThetaRaoBlackwell.txt',sep=''))
-		thetaArray<-array(0,dim=c(nSamples,nPredictSubjects,nCategoriesY))
+	  thetaFileName<-file.path(directoryPath,paste(fileStem,'_predictThetaRaoBlackwell.txt',sep=''))
+	  thetaArray<-array(0,dim=c(nSamples,nPredictSubjects,nCategoriesY))
 		# Read the RB theta data
 		if (yModel=="Categorical"){
 			thetaMat<-matrix(scan(thetaFileName,what=double(),quiet=T),byrow=T,ncol=nPredictSubjects*(nCategoriesY-1))
@@ -2172,8 +2394,13 @@ calcPredictions<-function(riskProfObj,predictResponseFileName=NULL, doRaoBlackwe
 	if(fullSweepLogOR){
 		logORPerSweep<-matrix(0,ncol=ncol(predictedY),nrow=nrow(predictedY))
 		for(i in 1:dim(thetaArray)[1]){
-			# Always relative to the first prediction subject
-			logORPerSweep[i,]<-thetaArray[i,,]-thetaArray[i,1,]
+			if (is.na(referenceClusterOR)){
+				# Always relative to the first prediction subject
+				logORPerSweep[i,]<-thetaArray[i,,]-thetaArray[i,1,]
+			} else {
+				# relative to the cluster with lowest risk 
+				logORPerSweep[i,]<-thetaArray[i,,]-risk[i,referenceClusterOR,]
+			}
 		}
 		output$logORPerSweep<-logORPerSweep
 	}
@@ -2895,7 +3122,7 @@ plotPredictions<-function(outfile,runInfoObj,predictions,logOR=FALSE){
 	for (i in 1:length(runInfoObj)) assign(names(runInfoObj)[i],runInfoObj[[i]])
 
 	if (yModel!="Bernoulli"&&yModel!="Normal"&&yModel!="Survival"&&yModel!="Quantile") stop("This function has been developed for Bernoulli, Normal, Quantile and Survival response only.")
-	if (xModel=="Mixed") stop("This function has been developed for Discrete and Normal covariates only.")
+#	if (xModel=="Mixed") stop("This function has been developed for Discrete and Normal covariates only.")
 	if (yModel=="Normal"||yModel=="Quantile") logOR<-FALSE
 
 	#if (runInfoObj$nFixedEffects>0) print("Note that fixed effects are not processed in this function.")
