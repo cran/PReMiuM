@@ -1,5 +1,5 @@
 34826c06dab8042a8e7c6a4beea05f23 *ChangeLog
-02f93f3f11d1d65603eff808312a6a73 *DESCRIPTION
+520bd052564f4f50e136975d5e153eda *DESCRIPTION
 d4b415cad99e73ed747f36083165d1c8 *NAMESPACE
 641a49414cddb47e0a15db0946dcc008 *R/generateData.R
 87259bbad8c4e2a939def61359920a7c *R/postProcess.R
@@ -36,7 +36,7 @@ f3b7c7dca9852a14ca97dde1474bc844 *src/include/MCMC/model.h
 8732db53ed9ff62826b74051a774db1c *src/include/Math/ars2.h
 160829620c619d646c666b626e6dce94 *src/include/Math/distribution.h
 bc940a165869f9ea456ce3a1e60397df *src/include/Math/mathfunctions.h
-1c6b817f850e788bd0efc611f8cbbc1b *src/include/Math/random.h
+18ca00c69ce7cb5f4010ba6483e03b65 *src/include/Math/random.h
 6bfaee9730088144909c718c7dfeff75 *src/include/PReMiuMArs.cpp
 8e961b15ee36eaec56123857d8fdcec4 *src/include/PReMiuMArs.h
 8dfda8d57f0ba780c93e9f4075d0da30 *src/include/PReMiuMData.h
