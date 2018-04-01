@@ -1,3 +1,15 @@
+Changes in version 3.1.7 (2018-01-00)
+
+* Added error message for constant continuous covariates.
+* Fixed minor bug for option useNormInvWishPrior in profRegr
+* Fixed bug with nSweeps's default value
+
+--------------------------------------------
+Changes in version 3.1.6 (2017-11-02)
+
+* Fixed error message in random number generation
+
+--------------------------------------------
 Changes in version 3.1.5 (2017-10-22)
 
 * Fixed warning message in function plotRiskProfile
@@ -35,7 +47,7 @@ Changes in version 3.1.1 (2015-03-18)
 * Fixed bug in the function plotRiskProfile for xModel="Mixed" when only one Discrete covariate is provided
 * Updated citation file
 * Fixed bug in p(Z) for marginal model posterior
-* Added conjugate Normal inverse Whishart prior for Normal covariates (Aurore Lavigne)
+* Added conjugate Normal inverse Wishart prior for Normal covariates (Aurore Lavigne)
 
 --------------------------------------------
 Changes in version 3.1.0 (2015-03-13)
