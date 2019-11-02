@@ -1,7 +1,7 @@
-a161ebb64bc19690e21bac7b195f71ca *ChangeLog
-0f10a00f70ec0e0a0c414189d4706e7f *DESCRIPTION
-e8ebc127963342623c701a2be41b60bb *NAMESPACE
-4455670cce1126d33db96f3b94a50824 *R/generateData.R
+04cabc1378c0e9eeaf5f114e2e02148a *ChangeLog
+6ce3ed23933fd80202a77381853be604 *DESCRIPTION
+7aef019cb5a16b60ecaeb763cc1ca197 *NAMESPACE
+149b8c17a20c08c08b2726feefa449d9 *R/generateData.R
 41d8d0ac94719f631124821b84e2ba6b *R/postProcess.R
 fb7ebc7e98e4c1f7ab33622a19688ed0 *inst/CITATION
 739845e11f7e69826b04ca22a7d45568 *inst/shapes/sids.dbf
@@ -12,7 +12,7 @@ c49e4f45edcdad793105be7aa4c8f3d4 *man/PReMiuM-package.Rd
 073e167f4213d2872fa94a30e35f7496 *man/calcDissimilarityMatrix.Rd
 17f160cb85028d3ecd78d64dc156972c *man/calcOptimalClustering.Rd
 cff86cd1abf279307a536be56357ae35 *man/calcPredictions.Rd
-b30fcfb1929d6be28e733d88de723f58 *man/clusSummaryBernoulliDiscrete.Rd
+c128ec889df51e07360335b524a9cb1e *man/clusSummaryBernoulliDiscrete.Rd
 43adc7989c731e5c40f833ba5e9ae78d *man/computeRatioOfVariance.Rd
 61eaabb309c267e81fb2325c666c1650 *man/generateSampleDataFile.Rd
 9cc4dba8484f3068583620b837d58942 *man/globalParsTrace.Rd
@@ -21,7 +21,7 @@ e117cde71deb3b15f849cce1329d6ed0 *man/is.wholenumber.Rd
 fd7ec387a78af5e92281f294d86fd95a *man/mapforGeneratedData.Rd
 38dfcccd0d7a1140c0d66a297071b410 *man/margModelPosterior.Rd
 e53c3ecc7984d82bd57ed9cdab6439cd *man/plotPredictions.Rd
-db6aae9c9507ff81989144fe65cc8f06 *man/plotRiskProfile.Rd
+7235cdaedd14a2d90946aeaf74824780 *man/plotRiskProfile.Rd
 bbd120bbf9a098f1e840bb2db60b4c4a *man/profRegr.Rd
 f9f2146bd74bbe00789309a186343c0c *man/setHyperparams.Rd
 dfe70155d75966b92818e7cd55a4fc11 *man/simBenchmark.Rd
