@@ -1,9 +1,9 @@
-04cabc1378c0e9eeaf5f114e2e02148a *ChangeLog
-6ce3ed23933fd80202a77381853be604 *DESCRIPTION
-7aef019cb5a16b60ecaeb763cc1ca197 *NAMESPACE
-149b8c17a20c08c08b2726feefa449d9 *R/generateData.R
+794033b24c6f353a0cb4380c2bc496cf *ChangeLog
+50189b26c59afe5cdf0fd84d92270ea6 *DESCRIPTION
+da474ed77dbb46710c38fdf5bc00f0b9 *NAMESPACE
+3d4ce239d995edc04e5cd4f544cb2238 *R/generateData.R
 41d8d0ac94719f631124821b84e2ba6b *R/postProcess.R
-fb7ebc7e98e4c1f7ab33622a19688ed0 *inst/CITATION
+04ff65f66db8e52bc278b4c4d3e34204 *inst/CITATION
 739845e11f7e69826b04ca22a7d45568 *inst/shapes/sids.dbf
 32ef63f29fdb9eca9733dc5feb3a707d *inst/shapes/sids.shp
 2085b2c4715f1f58c64bc410166371fd *inst/shapes/sids.shx
@@ -23,6 +23,7 @@ fd7ec387a78af5e92281f294d86fd95a *man/mapforGeneratedData.Rd
 e53c3ecc7984d82bd57ed9cdab6439cd *man/plotPredictions.Rd
 7235cdaedd14a2d90946aeaf74824780 *man/plotRiskProfile.Rd
 bbd120bbf9a098f1e840bb2db60b4c4a *man/profRegr.Rd
+0aa484a3680fc9432dcf8fa9f31ce25f *man/rALD.Rd
 f9f2146bd74bbe00789309a186343c0c *man/setHyperparams.Rd
 dfe70155d75966b92818e7cd55a4fc11 *man/simBenchmark.Rd
 8f306064af8a25590d80e4770dcae51a *man/summariseVarSelectRho.Rd
