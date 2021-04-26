@@ -1,5 +1,5 @@
 794033b24c6f353a0cb4380c2bc496cf *ChangeLog
-50189b26c59afe5cdf0fd84d92270ea6 *DESCRIPTION
+c11645248fa3c4e8570a49c0e54c5099 *DESCRIPTION
 da474ed77dbb46710c38fdf5bc00f0b9 *NAMESPACE
 3d4ce239d995edc04e5cd4f544cb2238 *R/generateData.R
 41d8d0ac94719f631124821b84e2ba6b *R/postProcess.R
@@ -30,7 +30,7 @@ dfe70155d75966b92818e7cd55a4fc11 *man/simBenchmark.Rd
 095e4fcb51c7cb0fad4f43c27067a3f1 *man/vec2mat.Rd
 4521ea0efdc3d776b1b85431d5890226 *src/Makevars
 48e7eaf9267a2fabf3db0f222176c15d *src/Makevars.win
-522e18d621e85fe58668a89f896adb26 *src/PReMiuM.cpp
+fa105c523ba878b726c7243ead55bf4f *src/PReMiuM.cpp
 e8874429871f085852a33bc059ded88f *src/PReMiuM.h
 286728e7f8739437d51adbab11252bfd *src/include/MCMC/chain.h
 f3b7c7dca9852a14ca97dde1474bc844 *src/include/MCMC/model.h
@@ -53,5 +53,5 @@ cd2152003b54ab2c4ec99a5cf0649a04 *src/include/Math/random.h
 e4445462dbd8c92f213b0669d0fa5e52 *src/init.cpp
 5025492425f62f80b140f9de76adb7d7 *src/postProcess.cpp
 e2ccd0030052f1f443d3d8e3a833c87a *tests/test-basic1.R
-f8c93bd79428a4b48aaa629a9b7eb0b5 *tests/testthat/test-calcAvgRisk.R
-60db27ff7c3f4252a430b05f180d7b0d *tests/testthat/test-profRegr.R
+5908ca7a89c7df703be34ffc41ecf31e *tests/testthat/test-calcAvgRisk.R
+4f2e51e6e1cae6092f7f14349c797ade *tests/testthat/test-profRegr.R
