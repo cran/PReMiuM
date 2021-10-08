@@ -41,7 +41,7 @@ Maintainer: Silvia Liverani <liveranis@gmail.com>
 }
 \references{
 
-Galarza Morales, C., Lachos Davila, V., Barbosa Cabral, C., and Castro Cepero, L. (2017) Robust quantile regression using a generalized class of skewed distributions. Stat,6: 113-130 doi: 10.1002/sta4.140.
+Galarza Morales, C., Lachos Davila, V., Barbosa Cabral, C., and Castro Cepero, L. (2017) Robust quantile regression using a generalized class of skewed distributions. Stat,6: 113-130 \doi{10.1002/sta4.140}.
 
 }
 \examples{
