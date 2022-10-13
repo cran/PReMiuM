@@ -190,7 +190,7 @@ profRegr<-function(covNames, fixedEffectsNames, outcome="outcome", outcomeT=NA, 
     if (sum(is.na(fixedEffects))>0) stop("ERROR: fixed effects cannot have missing values. Use an imputation method before using profRegr().")
     dataMatrix<-cbind(dataMatrix,fixedEffects)
     for (i in dim(fixedEffects)[2]){
-      if (class(fixedEffects[,i])=="character") stop("ERROR: fixed effects must be of class numeric. See help pages.") 
+      if (isa(fixedEffects[,i],"character")) stop("ERROR: fixed effects must be of class numeric. See help pages.") 
     }
   } else {
     nFixedEffects<-0
