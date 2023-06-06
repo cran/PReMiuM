@@ -451,7 +451,7 @@ profRegr<-function(covNames, fixedEffectsNames, outcome="outcome", outcomeT=NA, 
   if (useSeparationPrior) inputString<-paste(inputString," --useSeparationPrior", sep="")
   if (useIndependentNormal) inputString<-paste(inputString," --useIndependentNormal", sep="")
 
-  if (run) .Call('profRegr', inputString, PACKAGE = 'PReMiuM')
+  if (run) .Call("profRegr", inputString, PACKAGE = 'PReMiuM')
   
   
   # define directory path and fileStem
@@ -583,7 +583,7 @@ calcDissimilarityMatrix<-function(runInfoObj,onlyLS=FALSE){
   }
   
   # Call the C++ to compute the dissimilarity matrix
-  disSimList<-.Call('calcDisSimMat',fileName,nSweeps,recordedNBurn,nFilter,nSubjects,
+  disSimList<-.Call("calcDisSimMat",fileName,nSweeps,recordedNBurn,nFilter,nSubjects,
                     nPredictSubjects, onlyLS, PACKAGE = 'PReMiuM')
   
   if (onlyLS){
@@ -2739,7 +2739,7 @@ margModelPosterior<-function(runInfoObj,allocation){
   }
   nTableNames<-as.integer(nTableNames)
   maxNTableNames<-max(nTableNames)
-  out<-.Call('pYGivenZW',beta,theta,zAlloc,hyperParams$sigmaBeta,
+  out<-.Call("pYGivenZW",beta,theta,zAlloc,hyperParams$sigmaBeta,
              hyperParams$sigmaTheta,hyperParams$dofTheta,hyperParams$dofBeta,nSubjects,
              yMat,betaW,nFixedEffects,nTableNames,constants,
              maxNTableNames,PACKAGE = 'PReMiuM')
@@ -2757,14 +2757,14 @@ margModelPosterior<-function(runInfoObj,allocation){
   if (nFixedEffects>0){
     beta<-tail(thetaBeta,-nClusters)
     betaW<-as.matrix(wMat)%*%beta
-    yPred<-.Call('GradpYGivenZW',beta,theta,zAlloc,nSubjects,
+    yPred<-.Call("GradpYGivenZW",beta,theta,zAlloc,nSubjects,
                  betaW,yMat,nFixedEffects,nTableNames,
                  maxNTableNames,PACKAGE = 'PReMiuM')
     wPred<- as.matrix(wMat)*yPred
   } else {
     beta<-0
     betaW<-0
-    yPred<-.Call('GradpYGivenZW',beta,theta,zAlloc,nSubjects,
+    yPred<-.Call("GradpYGivenZW",beta,theta,zAlloc,nSubjects,
                  betaW,yMat,nFixedEffects,nTableNames,
                  maxNTableNames,PACKAGE = 'PReMiuM')
   }
@@ -2894,7 +2894,7 @@ margModelPosterior<-function(runInfoObj,allocation){
   nPlus<-head(c(rev(cumsum(rev(clusterSizes[-1]))),0),-1)	
   
   # computation of pX+pZ
-  pZpX<-.Call('pZpX',nClusters,nCategories,hyperParams$aPhi,clusterSizes,nCovariates, zAlloc, as.vector(as.matrix(xMat)), as.integer(nTableNames), alphaMPP, nPlus, PACKAGE = 'PReMiuM')
+  pZpX<-.Call("pZpX",nClusters,nCategories,hyperParams$aPhi,clusterSizes,nCovariates, zAlloc, as.vector(as.matrix(xMat)), as.integer(nTableNames), alphaMPP, nPlus, PACKAGE = 'PReMiuM')
   
   # computation of pY
   if (includeResponse==T){

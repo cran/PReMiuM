@@ -1,11 +1,11 @@
-db2ee3ad1dd00c70e2f5f98c5ea10ca2 *ChangeLog
-0453e776aa8b8aa8b25d515737b0b5bb *DESCRIPTION
+dfdb9de362f32719e638d44ded8bdb26 *ChangeLog
+90ccd2e8503dc2acb61f8d2f15d495d2 *DESCRIPTION
 68ebff4afb63f33470580263130bb40a *NAMESPACE
 55ccd6d40b4ccf0700d9a33987344130 *R/generateData.R
-e893d2922e39746aec319e647e5deddb *R/postProcess.R
-0c6ad5b3446721162c89589e8077ab1c *build/partial.rdb
-2cda395cf19a18946622e1049560d2a3 *inst/CITATION
-82a3348085c934fadab0214bf4abbbc4 *man/PReMiuM-package.Rd
+ccc578b69d5cf4a5ad9ccb5db47b1c72 *R/postProcess.R
+439bf689fa27cf9affd0335332142165 *build/partial.rdb
+0b2265882878256fbbb694816063fd1d *inst/CITATION
+e58e66f241eb33a826529ceea005a651 *man/PReMiuM-package.Rd
 0db92f2ae29ff074aea6426d7a5dd99b *man/calcAvgRiskAndProfile.Rd
 a4886cfbac7f6d1192fb658f74f232fc *man/calcDissimilarityMatrix.Rd
 0965fc71686c9b0e22b76f920b61714b *man/calcOptimalClustering.Rd
@@ -26,8 +26,8 @@ ffe9f5a43f73ee3acebc02a3c95368b5 *man/profRegr.Rd
 fdcee351782227157e1569bda9fe1d24 *man/simBenchmark.Rd
 67b84fcb51d9a4077c0f4143a19382e5 *man/summariseVarSelectRho.Rd
 e3c1d374940568801e8c844c1e38ec00 *man/vec2mat.Rd
-4521ea0efdc3d776b1b85431d5890226 *src/Makevars
-48e7eaf9267a2fabf3db0f222176c15d *src/Makevars.win
+baad768a9b8638a957497926fb3a92b4 *src/Makevars
+49c2afcf5efb27255817b0ac6123bee9 *src/Makevars.win
 fa105c523ba878b726c7243ead55bf4f *src/PReMiuM.cpp
 e8874429871f085852a33bc059ded88f *src/PReMiuM.h
 286728e7f8739437d51adbab11252bfd *src/include/MCMC/chain.h
@@ -48,7 +48,7 @@ cd2152003b54ab2c4ec99a5cf0649a04 *src/include/Math/random.h
 9a494865ba46e606e7ac556f74bc3a13 *src/include/PReMiuMOptions.h
 e7d4f3259373525e32f9526b7477b3da *src/include/PReMiuMProposals.h
 7b2c4e02a59d721841a6d96a027ae0aa *src/include/postProcess.h
-e4445462dbd8c92f213b0669d0fa5e52 *src/init.cpp
+777a4ab1d0fdcf729c3081c295062dbf *src/init.cpp
 5025492425f62f80b140f9de76adb7d7 *src/postProcess.cpp
 e2ccd0030052f1f443d3d8e3a833c87a *tests/test-basic1.R
 5908ca7a89c7df703be34ffc41ecf31e *tests/testthat/test-calcAvgRisk.R
