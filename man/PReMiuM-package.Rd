@@ -1,6 +1,7 @@
 \name{PReMiuM-package}
 \alias{PReMiuMpackage}
 \alias{PReMiuM}
+\alias{PReMiuM-package}
 \docType{package}
 \title{
 Dirichlet Process Bayesian Clustering

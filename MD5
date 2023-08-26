@@ -1,11 +1,11 @@
 dfdb9de362f32719e638d44ded8bdb26 *ChangeLog
-90ccd2e8503dc2acb61f8d2f15d495d2 *DESCRIPTION
+7d51e0f7d030cc0fd84afda3e8014828 *DESCRIPTION
 68ebff4afb63f33470580263130bb40a *NAMESPACE
 55ccd6d40b4ccf0700d9a33987344130 *R/generateData.R
 ccc578b69d5cf4a5ad9ccb5db47b1c72 *R/postProcess.R
-439bf689fa27cf9affd0335332142165 *build/partial.rdb
+7080893e02c49cd296d4424b9be55069 *build/partial.rdb
 0b2265882878256fbbb694816063fd1d *inst/CITATION
-e58e66f241eb33a826529ceea005a651 *man/PReMiuM-package.Rd
+f7bc4a0389bf87de27ee6dc2c757d388 *man/PReMiuM-package.Rd
 0db92f2ae29ff074aea6426d7a5dd99b *man/calcAvgRiskAndProfile.Rd
 a4886cfbac7f6d1192fb658f74f232fc *man/calcDissimilarityMatrix.Rd
 0965fc71686c9b0e22b76f920b61714b *man/calcOptimalClustering.Rd
