@@ -89,6 +89,7 @@ profRegr<-function(covNames, fixedEffectsNames, outcome="outcome", outcomeT=NA, 
         print(paste("Replacing level ",levels(outcomeFactor)," with ",c(0:(yLevels-1)),sep=""))
         levels(outcomeFactor)<-c(0:(yLevels-1))
         dataMatrix<-outcomeFactor
+        if (!missing(predict)) stop("If you are including data for prediction, it is advised that the recoding of the categorical variables as advised above is done manually ahead of running this function, as errors might arise.")
       }
     } else {
       print("Recoding of the outcome as follows")
@@ -96,6 +97,7 @@ profRegr<-function(covNames, fixedEffectsNames, outcome="outcome", outcomeT=NA, 
       print(paste("Replacing level ",levels(outcomeFactor)," with ",c(0:(yLevels-1)),sep=""))
       levels(outcomeFactor)<-c(0:(yLevels-1))
       dataMatrix<-outcomeFactor
+      if (!missing(predict)) stop("If you are including data for prediction, it is advised that the recoding of the categorical variables as advised above is done manually ahead of running this function, as errors might arise.")
     }
     if (yModel=="Bernoulli") yLevels <- 1
   } else {
@@ -127,7 +129,8 @@ profRegr<-function(covNames, fixedEffectsNames, outcome="outcome", outcomeT=NA, 
         levels(tmpCovFactor)<-c(0:(xLevels[k]-1))	
         dataMatrix[,(1+k)]<-tmpCovFactor
         dataMatrix[,(1+k)]<-as.numeric(levels(dataMatrix[,(1+k)]))[as.integer(dataMatrix[,(1+k)])]
-        
+	if (!missing(predict)) stop("If you are including data for prediction, it is advised that the recoding of the categorical variables as advised above is done manually ahead of running this function, as errors might arise.")
+
       } else {
         if (!(min(tmpCov,na.rm=TRUE)==0&&max(tmpCov,na.rm=TRUE)==(xLevels[k]-1)&&sum(!is.wholenumber(tmpCov[!is.na(tmpCov)]))==0)) {
           print(paste("Recoding of covariate ",colnames(dataMatrix)[k+1]," as follows",sep=""))
@@ -137,6 +140,8 @@ profRegr<-function(covNames, fixedEffectsNames, outcome="outcome", outcomeT=NA, 
           levels(tmpCovFactor)<-c(0:(xLevels[k]-1))	
           dataMatrix[,(1+k)]<-tmpCovFactor
           dataMatrix[,(1+k)]<-as.numeric(levels(dataMatrix[,(1+k)]))[as.integer(dataMatrix[,(1+k)])]
+	if (!missing(predict)) stop("If you are including data for prediction, it is advised that the recoding of the categorical variables as advised above is done manually ahead of running this function, as errors might arise.")
+
         }
       }
     }
@@ -153,6 +158,8 @@ profRegr<-function(covNames, fixedEffectsNames, outcome="outcome", outcomeT=NA, 
         levels(tmpCovFactor)<-c(0:(xLevels[k]-1))	
         dataMatrix[,(1+k)]<-tmpCovFactor
         dataMatrix[,(1+k)]<-as.numeric(levels(dataMatrix[,(1+k)]))[as.integer(dataMatrix[,(1+k)])]
+      if (!missing(predict)) stop("If you are including data for prediction, it is advised that the recoding of the categorical variables as advised above is done manually ahead of running this function, as errors might arise.")
+        
       } else {
         if (!(min(tmpCov,na.rm=TRUE)==0&&max(tmpCov,na.rm=TRUE)==(xLevels[k]-1)&&sum(!is.wholenumber(tmpCov[!is.na(tmpCov)]))==0)) {
           print(paste("Recoding of covariate number ",colnames(dataMatrix)[k+1]," as follows",sep=""))
@@ -162,6 +169,8 @@ profRegr<-function(covNames, fixedEffectsNames, outcome="outcome", outcomeT=NA, 
           levels(tmpCovFactor)<-c(0:(xLevels[k]-1))	
           dataMatrix[,(1+k)]<-tmpCovFactor
           dataMatrix[,(1+k)]<-as.numeric(levels(dataMatrix[,(1+k)]))[as.integer(dataMatrix[,(1+k)])]
+      if (!missing(predict)) stop("If you are including data for prediction, it is advised that the recoding of the categorical variables as advised above is done manually ahead of running this function, as errors might arise.")
+
         }
       }
     }

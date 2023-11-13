@@ -1,3 +1,8 @@
+Changes in version 3.2.11 (2023-11-13)
+
+* Fixed bug with predictions when categorical variables are not in 0-1-2-etc format
+
+--------------------------------------------
 Changes in version 3.2.9 (2023-06-02)
 
 * Fixed bug as requested to use character string naming a foreign function entry point in a foreign function call

@@ -1,9 +1,9 @@
-dfdb9de362f32719e638d44ded8bdb26 *ChangeLog
-7d51e0f7d030cc0fd84afda3e8014828 *DESCRIPTION
+57ec18c91e947e194cc4c46ffa944e90 *ChangeLog
+410ec2e9231c1ebacc00659901f1c93d *DESCRIPTION
 68ebff4afb63f33470580263130bb40a *NAMESPACE
 55ccd6d40b4ccf0700d9a33987344130 *R/generateData.R
-ccc578b69d5cf4a5ad9ccb5db47b1c72 *R/postProcess.R
-7080893e02c49cd296d4424b9be55069 *build/partial.rdb
+8c49b0fb4d0e310cf0089d72ab442558 *R/postProcess.R
+8faf250d78a120ba4c7ea2186efddd24 *build/partial.rdb
 0b2265882878256fbbb694816063fd1d *inst/CITATION
 f7bc4a0389bf87de27ee6dc2c757d388 *man/PReMiuM-package.Rd
 0db92f2ae29ff074aea6426d7a5dd99b *man/calcAvgRiskAndProfile.Rd
@@ -21,7 +21,7 @@ e0abf948fe0c6e154bc336ef21a195ba *man/is.wholenumber.Rd
 56df4fdf0e2527c1ae914b36e2ca9858 *man/plotPredictions.Rd
 e74af4d768619dee33ec6a1426aaa7af *man/plotRiskProfile.Rd
 ffe9f5a43f73ee3acebc02a3c95368b5 *man/profRegr.Rd
-16843be76592b85145eef709a64c8e3a *man/rALD.Rd
+888d9f42779ceea149d9a93bf91ffbc9 *man/rALD.Rd
 682252a41dbbf70f39766841af2368ad *man/setHyperparams.Rd
 fdcee351782227157e1569bda9fe1d24 *man/simBenchmark.Rd
 67b84fcb51d9a4077c0f4143a19382e5 *man/summariseVarSelectRho.Rd
