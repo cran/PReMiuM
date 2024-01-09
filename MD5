@@ -1,5 +1,5 @@
-57ec18c91e947e194cc4c46ffa944e90 *ChangeLog
-410ec2e9231c1ebacc00659901f1c93d *DESCRIPTION
+cfebdf5058900be09d3212423a8ddd89 *ChangeLog
+3187b466085023bc65d91dfdab81623e *DESCRIPTION
 68ebff4afb63f33470580263130bb40a *NAMESPACE
 55ccd6d40b4ccf0700d9a33987344130 *R/generateData.R
 8c49b0fb4d0e310cf0089d72ab442558 *R/postProcess.R
@@ -33,7 +33,7 @@ e8874429871f085852a33bc059ded88f *src/PReMiuM.h
 286728e7f8739437d51adbab11252bfd *src/include/MCMC/chain.h
 f3b7c7dca9852a14ca97dde1474bc844 *src/include/MCMC/model.h
 7b1662bce2dfdff44462ef8ec96be602 *src/include/MCMC/proposal.h
-3ed0a0c44aaaab43b4ee662cf020c03b *src/include/MCMC/sampler.h
+1a7ac01d98d5036d84f798c7c8a3f689 *src/include/MCMC/sampler.h
 361ed29fc464e145b9e405d6c34a12a2 *src/include/MCMC/state.h
 8cbd6479d36b67a926733dfc973fa17a *src/include/Math/Error.h
 8732db53ed9ff62826b74051a774db1c *src/include/Math/ars2.h
@@ -49,7 +49,7 @@ cd2152003b54ab2c4ec99a5cf0649a04 *src/include/Math/random.h
 e7d4f3259373525e32f9526b7477b3da *src/include/PReMiuMProposals.h
 7b2c4e02a59d721841a6d96a027ae0aa *src/include/postProcess.h
 777a4ab1d0fdcf729c3081c295062dbf *src/init.cpp
-5025492425f62f80b140f9de76adb7d7 *src/postProcess.cpp
+34d3a3002d65d4ef75a6ea0737b362d7 *src/postProcess.cpp
 e2ccd0030052f1f443d3d8e3a833c87a *tests/test-basic1.R
 5908ca7a89c7df703be34ffc41ecf31e *tests/testthat/test-calcAvgRisk.R
 4f2e51e6e1cae6092f7f14349c797ade *tests/testthat/test-profRegr.R
